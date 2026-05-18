@@ -1,0 +1,6 @@
+.claude/
+readme_preview.html
+icon_preview.html
+logo_preview.html
+__pycache__/
+*.pyc
