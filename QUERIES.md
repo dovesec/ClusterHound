@@ -1,6 +1,6 @@
 # ClusterHound - Custom Cypher Queries
 
-These queries are designed for use with [BloodHound CE](https://github.com/SpecterOps/BloodHound) after ingesting ClusterHound data. Import `customqueries.json` via the BloodHound CE UI to load them all at once, or run them directly in the Cypher query box.
+These queries are designed for use with BloodHound CE after ingesting ClusterHound data. Import `customqueries.json` via the configure_bloodhound.py script in the repo to see them in BloodHound, or run them directly in the Cypher query box.
 
 | Name | Query |
 | ---- | ----- |
