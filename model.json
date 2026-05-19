@@ -1,0 +1,136 @@
+{
+  "custom_types": {
+    "Cluster": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "circle-nodes",
+        "color": "#326CE5"
+      }
+    },
+    "ExternalActor": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user-secret",
+        "color": "#EF5350"
+      }
+    },
+    "Node": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "server",
+        "color": "#4A90D9"
+      }
+    },
+    "Namespace": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "layer-group",
+        "color": "#5FED83"
+      }
+    },
+    "Pod": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "cube",
+        "color": "#64B5F6"
+      }
+    },
+    "Service": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "door-open",
+        "color": "#FFD166"
+      }
+    },
+    "Secret": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "key",
+        "color": "#FF7043"
+      }
+    },
+    "Identity": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "id-card",
+        "color": "#FF8E40"
+      }
+    },
+    "Volume": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "hard-drive",
+        "color": "#78909C"
+      }
+    },
+    "Role": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "scroll",
+        "color": "#BFFFD1"
+      }
+    },
+    "ClusterRole": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "scroll",
+        "color": "#FFD700"
+      }
+    },
+    "RoleBinding": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "link",
+        "color": "#A0AEC0"
+      }
+    },
+    "ClusterRoleBinding": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "handshake",
+        "color": "#718096"
+      }
+    },
+    "IMDSService": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "cloud",
+        "color": "#AB47BC"
+      }
+    }
+  },
+  "custom_edges": {
+    "fullAccess":               { "label": "Full Access" },
+    "nodesProxyRCE":            { "label": "Nodes Proxy RCE" },
+    "unauthAPIAccess":          { "label": "Unauth API Access" },
+    "unauthKubeletAccess":      { "label": "Unauth Kubelet Access" },
+    "podPrivileged":            { "label": "Pod Privileged" },
+    "podHostPID":               { "label": "Pod Host PID" },
+    "podHostNetwork":           { "label": "Pod Host Network" },
+    "podHostIPC":               { "label": "Pod Host IPC" },
+    "canExec":                  { "label": "Can Exec" },
+    "canCreate":                { "label": "Can Create" },
+    "canPatch":                 { "label": "Can Patch" },
+    "canCreateEphemeral":       { "label": "Can Create Ephemeral" },
+    "canAttach":                { "label": "Can Attach" },
+    "compromiseServiceAccount": { "label": "Compromise Service Account" },
+    "canBind":                  { "label": "Can Bind" },
+    "canEscalate":              { "label": "Can Escalate" },
+    "canImpersonate":           { "label": "Can Impersonate" },
+    "canCreateToken":           { "label": "Can Create Token" },
+    "secretsRead":              { "label": "Reads Secrets" },
+    "hasWriteVolume":           { "label": "Has Write Volume" },
+    "hasReadVolume":            { "label": "Has Read Volume" },
+    "canPortForward":           { "label": "Can Port Forward" },
+    "accessIMDS":               { "label": "Access IMDS" },
+    "entryPoint":               { "label": "Entry Point" },
+    "bindsRole":                { "label": "Binds Role" }
+  },
+  "metadata": {
+    "version": "1.0",
+    "description": "ClusterHound Kubernetes attack path model for BloodHound CE",
+    "created": "2026",
+    "node_prefix": "",
+    "edge_prefix": ""
+  }
+}

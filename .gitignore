@@ -4,3 +4,6 @@ icon_preview.html
 logo_preview.html
 __pycache__/
 *.pyc
+*.json
+!model.json
+!customqueries.json
