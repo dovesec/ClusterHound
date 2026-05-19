@@ -400,6 +400,15 @@ def build_service_nodes(services):
         name = meta["name"]
         spec = svc.get("spec", {})
 
+        raw_ports = spec.get("ports") or []
+        port_strs = []
+        for p in raw_ports:
+            proto = p.get("protocol", "TCP")
+            port_num = p.get("port", "")
+            port_name = p.get("name", "")
+            entry = f"{port_name}:{port_num}/{proto}" if port_name else f"{port_num}/{proto}"
+            port_strs.append(entry)
+
         nodes.append({
             "id": nid(ns, "service", name),
             "kinds": ["Service"],
@@ -407,7 +416,8 @@ def build_service_nodes(services):
                 "name": name,
                 "namespace": ns,
                 "type": spec.get("type", "ClusterIP"),
-                "clusterip": spec.get("clusterIP", ""),
+                "clusterIP": spec.get("clusterIP", ""),
+                "ports": ", ".join(port_strs) if port_strs else "",
                 "externalips": spec.get("externalIPs", []),
                 "selector": json.dumps(spec.get("selector") or {}),
             }
