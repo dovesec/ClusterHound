@@ -1,32 +1,32 @@
 # ClusterHound - Custom Cypher Queries
 
-These queries are designed for use with BloodHound CE after ingesting ClusterHound data. Import `customqueries.json` via the configure_bloodhound.py script in the repo to see them in BloodHound, or run them directly in the Cypher query box.
+These queries are designed for use with [BloodHound CE](https://github.com/SpecterOps/BloodHound) after ingesting ClusterHound data. Import `customqueries.json` via the configure_bloodhound.py script in the repo to see them in BloodHound, or run them directly in the Cypher query box.
 
-| Name | Query |
-| ---- | ----- |
-| All Nodes of a Specific Type | `MATCH p=(n:Pod:ClusterHound) RETURN p` |
-| All Edges of a Specific Type | `MATCH p=(a:ClusterHound)-[:canExec]->(b:ClusterHound) RETURN p` |
-| All Edges from a Specific Object | `MATCH p=(n:ClusterHound {objectid: 'NAMESPACE/KIND/NAME'})-[r]->(m:ClusterHound) RETURN p` |
-| Specific Edge Type from a Specific Object | `MATCH p=(n:ClusterHound {objectid: 'NAMESPACE/KIND/NAME'})-[:canExec]->(m:ClusterHound) RETURN p` |
-| Identities with Full Cluster Access | `MATCH p=(n:ClusterHound)-[:fullAccess]->(c:Cluster:ClusterHound) RETURN p` |
-| Nodes Proxy RCE | `MATCH p=(n:Identity:ClusterHound)-[:nodesProxyRCE]->(c:Cluster:ClusterHound) RETURN p` |
-| Unauthenticated API and Kubelet Access | `MATCH p=(e:ExternalActor:ClusterHound)-[r:unauthAPIAccess\|unauthKubeletAccess]->(n:ClusterHound) RETURN p` |
-| Shortest Path from Identity to Full Cluster Compromise | `MATCH p=shortestPath((n:Identity:ClusterHound)-[*1..10]->(c:Cluster:ClusterHound)) RETURN p` |
-| Identities that Can Bind Roles | `MATCH p=(n:Identity:ClusterHound)-[:canBind]->(t:ClusterHound) RETURN p` |
-| Identities that Can Escalate Roles | `MATCH p=(n:Identity:ClusterHound)-[:canEscalate]->(t:ClusterHound) RETURN p` |
-| Identities Holding Both canBind and canEscalate | `MATCH p=(n:ClusterHound)-[:canBind]->(r:ClusterHound)<-[:canEscalate]-(n) RETURN p` |
-| Identities that Can Create Service Account Tokens | `MATCH p=(n:Identity:ClusterHound)-[:canCreateToken]->(t:ClusterHound) RETURN p` |
-| Identities that Can Impersonate | `MATCH p=(n:Identity:ClusterHound)-[:canImpersonate]->(t:ClusterHound) RETURN p` |
-| Privileged Pods | `MATCH p=(pod:Pod:ClusterHound)-[:podPrivileged]->(n:ClusterHound) RETURN p` |
-| Host Namespace Pods | `MATCH p=(pod:Pod:ClusterHound)-[r:podHostPID\|podHostNetwork\|podHostIPC]->(n:ClusterHound) RETURN p` |
-| Shortest Paths from Pod to Critical Permissions | `MATCH p=(pod:Pod:ClusterHound)-[:compromiseServiceAccount]->(i:Identity:ClusterHound)-[r:fullAccess\|nodesProxyRCE\|canBind\|canEscalate\|canExec\|canCreate\|canPatch\|canCreateEphemeral\|canImpersonate\|canCreateToken\|secretsRead]->(t:ClusterHound) RETURN p` |
-| Pods Reaching IMDS | `MATCH p=(pod:Pod:ClusterHound)-[:accessIMDS]->(imds:IMDSService:ClusterHound) RETURN p` |
-| Identities that Can Exec into Pods | `MATCH p=(n:Identity:ClusterHound)-[:canExec]->(t:ClusterHound) RETURN p` |
-| Identities that Can Create Pods | `MATCH p=(n:Identity:ClusterHound)-[:canCreate]->(t:ClusterHound) RETURN p` |
-| Identities that Can Patch Pods | `MATCH p=(n:Identity:ClusterHound)-[:canPatch]->(t:ClusterHound) RETURN p` |
-| Identities that Can Read Secrets | `MATCH p=(n:Identity:ClusterHound)-[:secretsRead]->(t:ClusterHound) RETURN p` |
-| Identities that Can Port Forward | `MATCH p=(n:Identity:ClusterHound)-[:canPortForward]->(t:ClusterHound) RETURN p` |
-| All Entry Points | `MATCH p=(svc:Service:ClusterHound)-[:entryPoint]->(pod:Pod:ClusterHound) RETURN p` |
-| Full Attack Chain - Entry Point to Critical Permissions | `MATCH p=(svc:Service:ClusterHound)-[:entryPoint]->(pod:Pod:ClusterHound)-[:compromiseServiceAccount]->(i:Identity:ClusterHound)-[r:fullAccess\|nodesProxyRCE\|canBind\|canEscalate\|canExec\|canCreate\|canPatch\|canCreateEphemeral\|canImpersonate\|canCreateToken\|secretsRead]->(t:ClusterHound) RETURN p` |
-| Pods with Write Volume Mounts | `MATCH p=(pod:Pod:ClusterHound)-[:hasWriteVolume]->(v:Volume:ClusterHound) RETURN p` |
-| Pods with Read Volume Mounts | `MATCH p=(pod:Pod:ClusterHound)-[:hasReadVolume]->(v:Volume:ClusterHound) RETURN p` |
+| Name | Query | Description |
+| ---- | ----- | ----------- |
+| All Nodes of a Specific Type | `MATCH p=(n:Pod:ClusterHound) RETURN p` | Enumerate all nodes of a given type. Replace `Pod` with any node type before running. |
+| All Edges of a Specific Type | `MATCH p=(a:ClusterHound)-[:canExec]->(b:ClusterHound) RETURN p` | View all edges of a given type across the graph. Replace `canExec` with any edge type before running. |
+| All Edges from a Specific Object | `MATCH p=(n:ClusterHound {objectid: 'NAMESPACE/KIND/NAME'})-[r]->(m:ClusterHound) RETURN p` | Explore all outbound relationships from a known object. Replace the `objectid` placeholder with the target object's identifier. |
+| Specific Edge Type from a Specific Object | `MATCH p=(n:ClusterHound {objectid: 'NAMESPACE/KIND/NAME'})-[:canExec]->(m:ClusterHound) RETURN p` | Inspect a specific relationship from a known object. Replace both the `objectid` and edge type before running. |
+| Identities with Full Cluster Access | `MATCH p=(n:ClusterHound)-[:fullAccess]->(c:Cluster:ClusterHound) RETURN p` | Identifies identities holding wildcard RBAC permissions granting unrestricted cluster-wide access. Highest severity finding. |
+| Nodes Proxy RCE | `MATCH p=(n:Identity:ClusterHound)-[:nodesProxyRCE]->(c:Cluster:ClusterHound) RETURN p` | Identifies identities with `nodes/proxy` GET permission, enabling proxied requests to the Kubelet API and RCE on any node. |
+| Unauthenticated API and Kubelet Access | `MATCH p=(e:ExternalActor:ClusterHound)-[r:unauthAPIAccess\|unauthKubeletAccess]->(n:ClusterHound) RETURN p` | Surfaces unauthenticated exposure of the API server or Kubelet API — externally reachable without credentials. |
+| Shortest Path from Identity to Full Cluster Compromise | `MATCH p=shortestPath((n:Identity:ClusterHound)-[*1..10]->(c:Cluster:ClusterHound)) RETURN p` | Finds the shortest path from any identity to the Cluster node, useful for prioritising remediation. |
+| Identities that Can Bind Roles | `MATCH p=(n:Identity:ClusterHound)-[:canBind]->(t:ClusterHound) RETURN p` | Identifies identities with the ability to create or modify RoleBindings or ClusterRoleBindings. |
+| Identities that Can Escalate Roles | `MATCH p=(n:Identity:ClusterHound)-[:canEscalate]->(t:ClusterHound) RETURN p` | Identifies identities with the `escalate` verb, allowing creation of roles with permissions beyond their own. |
+| Identities Holding Both canBind and canEscalate | `MATCH p=(n:ClusterHound)-[:canBind]->(r:ClusterHound)<-[:canEscalate]-(n) RETURN p` | Identities with both edges to the same scope can create an elevated role and bind it to themselves, bypassing Kubernetes role binding restrictions. |
+| Identities that Can Create Service Account Tokens | `MATCH p=(n:Identity:ClusterHound)-[:canCreateToken]->(t:ClusterHound) RETURN p` | Identifies identities with the ability to mint tokens for ServiceAccounts via the TokenRequest API. |
+| Identities that Can Impersonate | `MATCH p=(n:Identity:ClusterHound)-[:canImpersonate]->(t:ClusterHound) RETURN p` | Identifies identities with `impersonate` permissions, allowing API requests to be made as other users, groups, or service accounts. |
+| Privileged Pods | `MATCH p=(pod:Pod:ClusterHound)-[:podPrivileged]->(n:ClusterHound) RETURN p` | Identifies Pods running with `privileged: true`, providing a direct path to the underlying Node on container compromise. |
+| Host Namespace Pods | `MATCH p=(pod:Pod:ClusterHound)-[r:podHostPID\|podHostNetwork\|podHostIPC]->(n:ClusterHound) RETURN p` | Identifies Pods sharing host PID, network, or IPC namespaces with the underlying Node. |
+| Shortest Paths from Pod to Critical Permissions | `MATCH p=(pod:Pod:ClusterHound)-[:compromiseServiceAccount]->(i:Identity:ClusterHound)-[r:fullAccess\|nodesProxyRCE\|canBind\|canEscalate\|canExec\|canCreate\|canPatch\|canCreateEphemeral\|canImpersonate\|canCreateToken\|secretsRead]->(t:ClusterHound) RETURN p` | Chains `compromiseServiceAccount` with high-value RBAC edges to identify Pods whose service accounts hold critical permissions. |
+| Pods Reaching IMDS | `MATCH p=(pod:Pod:ClusterHound)-[:accessIMDS]->(imds:IMDSService:ClusterHound) RETURN p` | Identifies Pods that can potentially reach the cloud provider instance metadata endpoint. |
+| Identities that Can Exec into Pods | `MATCH p=(n:Identity:ClusterHound)-[:canExec]->(t:ClusterHound) RETURN p` | Identifies identities with `pods/exec` permission enabling direct command execution in running containers. |
+| Identities that Can Create Pods | `MATCH p=(n:Identity:ClusterHound)-[:canCreate]->(t:ClusterHound) RETURN p` | Identifies identities with Pod create permissions, enabling deployment of new workloads with arbitrary specs. |
+| Identities that Can Patch Pods | `MATCH p=(n:Identity:ClusterHound)-[:canPatch]->(t:ClusterHound) RETURN p` | Identifies identities with `patch` or `update` permissions on Pods, enabling modification of running Pod specs. |
+| Identities that Can Read Secrets | `MATCH p=(n:Identity:ClusterHound)-[:secretsRead]->(t:ClusterHound) RETURN p` | Identifies identities with `get` or `list` permissions on secrets, scoped to specific secrets, a namespace, or cluster-wide. |
+| Identities that Can Port Forward | `MATCH p=(n:Identity:ClusterHound)-[:canPortForward]->(t:ClusterHound) RETURN p` | Identifies identities with `pods/portforward` permission, enabling tunnelling into Pod network stacks for lateral movement. |
+| All Entry Points | `MATCH p=(svc:Service:ClusterHound)-[:entryPoint]->(pod:Pod:ClusterHound) RETURN p` | Surfaces Services whose selectors match running Pods, representing potential external or internal access paths into the cluster. |
+| Full Attack Chain - Entry Point to Critical Permissions | `MATCH p=(svc:Service:ClusterHound)-[:entryPoint]->(pod:Pod:ClusterHound)-[:compromiseServiceAccount]->(i:Identity:ClusterHound)-[r:fullAccess\|nodesProxyRCE\|canBind\|canEscalate\|canExec\|canCreate\|canPatch\|canCreateEphemeral\|canImpersonate\|canCreateToken\|secretsRead]->(t:ClusterHound) RETURN p` | Chains entry points through service account compromise to critical RBAC permissions in a single query, showing complete attack paths from network access to cluster impact. |
+| Pods with Write Volume Mounts | `MATCH p=(pod:Pod:ClusterHound)-[:hasWriteVolume]->(v:Volume:ClusterHound) RETURN p` | Identifies Pods with writable volume mounts, potentially allowing modification of sensitive data, configuration, or binaries. |
+| Pods with Read Volume Mounts | `MATCH p=(pod:Pod:ClusterHound)-[:hasReadVolume]->(v:Volume:ClusterHound) RETURN p` | Identifies Pods with read-capable volume mounts, potentially exposing sensitive data within the container filesystem. |
