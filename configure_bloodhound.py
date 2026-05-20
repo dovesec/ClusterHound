@@ -108,6 +108,13 @@ class BHSession:
         )
         r.raise_for_status()
 
+    def delete_saved_query(self, query_id: int) -> None:
+        r = self._s.delete(
+            f"{self.base}/api/v2/saved-queries/{query_id}",
+            headers=self._auth(),
+        )
+        r.raise_for_status()
+
     # ------------------------------------------------------- context manager
 
     def __enter__(self):
@@ -159,9 +166,9 @@ def import_queries(bh: BHSession, path: str) -> None:
         log.warning("No queries found in %s", path)
         return
 
-    existing_names = {q["name"] for q in bh.list_saved_queries()}
-    skipped = 0
+    existing = {q["name"]: q["id"] for q in bh.list_saved_queries()}
     imported = 0
+    updated = 0
 
     log.info("Importing %d queries from %s...", len(queries), path)
     for entry in queries:
@@ -173,16 +180,17 @@ def import_queries(bh: BHSession, path: str) -> None:
         if not name or not query:
             continue
 
-        if name in existing_names:
-            log.debug("  Skipped (already exists): %s", name)
-            skipped += 1
-            continue
+        if name in existing:
+            bh.delete_saved_query(existing[name])
+            log.debug("  Updated: %s", name)
+            updated += 1
+        else:
+            log.debug("  Imported: %s", name)
+            imported += 1
 
         bh.create_saved_query(name, query)
-        log.debug("  Imported: %s", name)
-        imported += 1
 
-    log.info("Done — %d imported, %d skipped (already exist)", imported, skipped)
+    log.info("Done — %d imported, %d updated", imported, updated)
 
 
 # ----------------------------------------------------------------------- main

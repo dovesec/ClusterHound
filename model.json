@@ -97,6 +97,13 @@
         "name": "cloud",
         "color": "#AB47BC"
       }
+    },
+    "Workload": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "cubes",
+        "color": "#4DD0E1"
+      }
     }
   },
   "custom_edges": {

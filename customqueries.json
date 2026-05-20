@@ -21,6 +21,10 @@
       "queryList": [{ "final": true, "query": "MATCH p=(n:ClusterHound)-[:fullAccess]->(c:Cluster:ClusterHound) RETURN p" }]
     },
     {
+      "name": "[ClusterHound] Identities with Full Namespace Access",
+      "queryList": [{ "final": true, "query": "MATCH p=(n:ClusterHound)-[:fullAccess]->(ns:Namespace:ClusterHound) RETURN p" }]
+    },
+    {
       "name": "[ClusterHound] Nodes Proxy RCE",
       "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:nodesProxyRCE]->(c:Cluster:ClusterHound) RETURN p" }]
     },
@@ -74,11 +78,19 @@
     },
     {
       "name": "[ClusterHound] Identities that Can Create Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canCreate]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canCreate]->(t:ClusterHound) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
+    },
+    {
+      "name": "[ClusterHound] Identities that Can Create Workloads",
+      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canCreate]->(t:ClusterHound) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Patch Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canPatch]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canPatch]->(t:ClusterHound) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
+    },
+    {
+      "name": "[ClusterHound] Identities that Can Patch Workloads",
+      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canPatch]->(t:ClusterHound) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Read Secrets",

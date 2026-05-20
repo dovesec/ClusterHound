@@ -80,6 +80,19 @@ def nid(namespace, kind, name):
     return f"cluster/{kind}/{name}"
 
 
+# Resource types that create pods, mapped to their canonical Kind name.
+# Used for canCreate and canPatch detection and for building Workload nodes.
+WORKLOAD_KINDS = [
+    ("deployments",            "Deployment"),
+    ("statefulsets",           "StatefulSet"),
+    ("daemonsets",             "DaemonSet"),
+    ("replicasets",            "ReplicaSet"),
+    ("replicationcontrollers", "ReplicationController"),
+    ("jobs",                   "Job"),
+    ("cronjobs",               "CronJob"),
+]
+
+
 # ============================================================
 # Data collection
 # ============================================================
@@ -95,6 +108,8 @@ def collect_all(namespace=None):
     namespaced = [
         "pods", "services", "secrets", "serviceaccounts",
         "roles", "rolebindings", "persistentvolumeclaims",
+        "deployments", "statefulsets", "daemonsets", "replicasets",
+        "replicationcontrollers", "jobs", "cronjobs",
     ]
     cluster_scoped = [
         "nodes", "clusterroles", "clusterrolebindings", "persistentvolumes",
@@ -618,10 +633,13 @@ def build_role_nodes(roles, clusterroles):
     return nodes
 
 
-def build_namespace_nodes(pods, services, secrets, serviceaccounts):
+def build_namespace_nodes(pods, services, secrets, serviceaccounts, workloads=None):
     """Derive Namespace nodes from collected namespaced resources."""
     namespaces = set()
-    for items in [pods, services, secrets, serviceaccounts]:
+    all_items = [pods, services, secrets, serviceaccounts]
+    if workloads:
+        all_items.extend(workloads.values())
+    for items in all_items:
         for item in items:
             ns = item["metadata"].get("namespace")
             if ns:
@@ -721,6 +739,29 @@ def build_imds_nodes(nodes_data):
     return []
 
 
+def build_workload_nodes(workloads):
+    """
+    Build Workload nodes from all pod-creating controller resources.
+    The `kind` property identifies the specific controller type.
+    """
+    nodes = []
+    for resource_type, kind in WORKLOAD_KINDS:
+        for item in workloads.get(resource_type, []):
+            meta = item["metadata"]
+            ns = meta["namespace"]
+            name = meta["name"]
+            nodes.append({
+                "id": nid(ns, kind.lower(), name),
+                "kinds": ["Workload"],
+                "properties": {
+                    "name": name,
+                    "namespace": ns,
+                    "kind": kind,
+                }
+            })
+    return nodes
+
+
 # ============================================================
 # Edge builders
 # ============================================================
@@ -737,20 +778,41 @@ def make_edge(start_id, end_id, kind, properties=None):
 
 
 class EdgeBuilder:
-    """Collects edges with built-in deduplication."""
+    """
+    Collects edges with deduplication and resource property merging.
+
+    When two adds share the same (start, end, kind) key:
+    - If the new call carries a `resource` property, its value is appended
+      to the existing edge's `resource` property (comma-separated, sorted).
+    - Otherwise the duplicate is silently dropped.
+
+    This ensures that an identity with create/patch permissions on multiple
+    resource types produces a single edge with e.g. resource="Deployment,Pod"
+    rather than silently losing all but the first.
+    """
 
     def __init__(self):
-        self._edges = []
-        self._seen = set()
+        self._edges = {}  # key -> edge dict
 
     def add(self, start_id, end_id, kind, properties=None):
         key = (start_id, end_id, kind)
-        if key not in self._seen:
-            self._seen.add(key)
-            self._edges.append(make_edge(start_id, end_id, kind, properties))
+        if key not in self._edges:
+            self._edges[key] = make_edge(start_id, end_id, kind, properties)
+        elif properties and "resource" in properties:
+            existing = self._edges[key]
+            existing_props = existing.setdefault("properties", {})
+            new_val = properties["resource"]
+            current = existing_props.get("resource", "")
+            if current:
+                parts = current.split(",")
+                if new_val not in parts:
+                    parts.append(new_val)
+                    existing_props["resource"] = ",".join(sorted(parts))
+            else:
+                existing_props["resource"] = new_val
 
     def edges(self):
-        return self._edges
+        return list(self._edges.values())
 
 
 def build_structural_edges(pods, services, rolebindings, clusterrolebindings, roles, clusterroles):
@@ -952,7 +1014,7 @@ def build_imds_edges(pods, imds_nodes):
     return eb
 
 
-def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts):
+def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=None):
     """
     Translate resolved RBAC permissions into direct Identity → resource edges.
 
@@ -962,6 +1024,15 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts):
 
     Identities with fullAccess (*/*) skip all other edge types — the cluster
     edge covers everything.
+
+    Cluster-wide */* → single fullAccess edge to the cluster; all other edges
+    suppressed. Namespace-scoped */* → fullAccess edge to each affected
+    namespace; other edges for that same namespace suppressed, edges for other
+    namespaces or cluster-wide permissions still emitted.
+
+    canCreate carries a `resource` property (e.g. "Pod", "Deployment") so
+    that multiple create permissions on the same namespace are merged into
+    one edge rather than silently deduplicated.
 
     Edges produced:
     - canExec, canAttach, canPortForward, canPatch, canCreate, canCreateEphemeral
@@ -973,10 +1044,15 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts):
     - canImpersonate
     """
     eb = EdgeBuilder()
+    workloads = workloads or {}
 
     all_pods = [(p["metadata"]["namespace"], p["metadata"]["name"]) for p in pods]
     all_secrets = [(s["metadata"]["namespace"], s["metadata"]["name"]) for s in secrets]
     all_sas = [(sa["metadata"]["namespace"], sa["metadata"]["name"]) for sa in serviceaccounts]
+    all_workloads = {
+        rt: [(w["metadata"]["namespace"], w["metadata"]["name"]) for w in workloads.get(rt, [])]
+        for rt, _ in WORKLOAD_KINDS
+    }
     cluster_id = "cluster/cluster/default"
 
     def match(actual, target):
@@ -1003,19 +1079,44 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts):
             return [(ns, n) for ns, n in all_sas if ns == namespace]
         return all_sas
 
-    # Pre-scan: identities with */* get a single fullAccess edge and nothing else
-    full_access_identities = set()
+    def workload_patch_targets(wl_resource, wl_kind):
+        """Return target IDs for canPatch on a workload resource type."""
+        if rnames:
+            in_scope = all_workloads.get(wl_resource, [])
+            return [
+                nid(ns, wl_kind.lower(), rn)
+                for rn in rnames
+                if any(n == rn and (not ns or wl_ns == ns) for wl_ns, n in in_scope)
+            ]
+        return [target]
+
+    # Pre-scan: detect cluster-wide and namespace-scoped */* permissions separately.
+    # Cluster-wide */* → single fullAccess edge to the cluster; all other edges
+    # are suppressed since they are already implied.
+    # Namespace-scoped */* → fullAccess edge to each affected namespace; edges
+    # targeting that same namespace are suppressed (already implied), but edges
+    # for other namespaces or cluster-wide permissions are still emitted.
+    cluster_full_access = set()
+    ns_full_access = {}  # identity_id -> {namespace, ...}
+
     for identity_id, perms in identity_perms.items():
         for p in perms:
             if p["resource"] == "*" and p["verb"] == "*" and p.get("subresource") is None:
-                full_access_identities.add(identity_id)
-                break
+                if p["namespace"] is None:
+                    cluster_full_access.add(identity_id)
+                else:
+                    ns_full_access.setdefault(identity_id, set()).add(p["namespace"])
 
-    for identity_id in full_access_identities:
+    for identity_id in cluster_full_access:
         eb.add(identity_id, cluster_id, "fullAccess")
 
+    for identity_id, namespaces in ns_full_access.items():
+        if identity_id not in cluster_full_access:
+            for ns in namespaces:
+                eb.add(identity_id, nid(None, "namespace", ns), "fullAccess")
+
     for identity_id, perms in identity_perms.items():
-        if identity_id in full_access_identities:
+        if identity_id in cluster_full_access:
             continue
 
         for p in perms:
@@ -1025,6 +1126,12 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts):
             ns = p["namespace"]
             rnames = p.get("resource_names") or []
             target = ns_target(ns)
+
+            # Skip permissions already implied by a namespace-scoped fullAccess
+            # to the same namespace. Cluster-wide perms (ns=None) are kept since
+            # they are not covered by a namespace-scoped fullAccess.
+            if ns and identity_id in ns_full_access and ns in ns_full_access[identity_id]:
+                continue
 
             def pod_targets():
                 if rnames:
@@ -1070,15 +1177,26 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts):
                 for t in pod_targets():
                     eb.add(identity_id, t, "canCreateEphemeral")
 
-            # canPatch
+            # canPatch on pods
             if match(r, "pods") and sub is None and (match(v, "patch") or match(v, "update")):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canPatch")
+                    eb.add(identity_id, t, "canPatch", {"resource": "Pod"})
 
-            # canCreate
+            # canPatch on workload resource types → specific Workload nodes or namespace/cluster
+            for wl_resource, wl_kind in WORKLOAD_KINDS:
+                if match(r, wl_resource) and sub is None and (match(v, "patch") or match(v, "update")):
+                    for t in workload_patch_targets(wl_resource, wl_kind):
+                        eb.add(identity_id, t, "canPatch", {"resource": wl_kind})
+
+            # canCreate on pods — resource property distinguishes from workload create
             if match(r, "pods") and sub is None and match(v, "create"):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canCreate")
+                    eb.add(identity_id, t, "canCreate", {"resource": "Pod"})
+
+            # canCreate on workload resource types → namespace/cluster with resource property
+            for wl_resource, wl_kind in WORKLOAD_KINDS:
+                if match(r, wl_resource) and sub is None and match(v, "create"):
+                    eb.add(identity_id, target, "canCreate", {"resource": wl_kind})
 
             # secretsRead
             if match(r, "secrets") and sub is None and (match(v, "get") or match(v, "list")):
@@ -1173,6 +1291,7 @@ def main():
     nodes_k8s           = data["nodes"]
     pvcs                = data["persistentvolumeclaims"]
     pvs                 = data["persistentvolumes"]
+    workloads           = {rt: data.get(rt, []) for rt, _ in WORKLOAD_KINDS}
 
     # ── Build nodes ───────────────────────────────────────────
     logging.info("Building graph nodes...")
@@ -1183,13 +1302,14 @@ def main():
         build_cluster_node(context_name)
         + build_external_actor_node()
         + build_node_nodes(pods, nodes_k8s)
-        + build_namespace_nodes(pods, services, secrets, serviceaccounts)
+        + build_namespace_nodes(pods, services, secrets, serviceaccounts, workloads)
         + build_pod_nodes(pods)
         + build_service_nodes(services)
         + build_secret_nodes(secrets)
         + build_identity_nodes(serviceaccounts)
         + build_user_group_nodes(rolebindings, clusterrolebindings)
         + build_volume_nodes(pods, pvcs, pvs)
+        + build_workload_nodes(workloads)
         + build_role_nodes(roles, clusterroles)
         + build_binding_nodes(rolebindings, clusterrolebindings)
         + imds_nodes
@@ -1210,7 +1330,7 @@ def main():
     )
     unauth_eb = build_unauth_edges(nodes_k8s)
     imds_eb = build_imds_edges(pods, imds_nodes)
-    rbac_eb = build_rbac_edges(identity_perms, pods, secrets, serviceaccounts)
+    rbac_eb = build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads)
 
     graph_edges = (
         structural_eb.edges()
