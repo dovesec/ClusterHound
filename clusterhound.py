@@ -21,7 +21,7 @@ def kubectl_json(*args):
     """Run a kubectl command with -o json and return parsed output."""
     cmd = ["kubectl"] + list(args) + ["-o", "json"]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=True)
         return json.loads(result.stdout)
     except subprocess.CalledProcessError as e:
         logging.warning(f"kubectl failed: {' '.join(cmd)}\n{e.stderr.strip()}")
@@ -35,7 +35,7 @@ def kubectl_raw(*args):
     """Run a kubectl command and return raw stdout text."""
     cmd = ["kubectl"] + list(args)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=True)
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         logging.warning(f"kubectl failed: {' '.join(cmd)}\n{e.stderr.strip()}")
@@ -1341,25 +1341,19 @@ def main():
     logging.info(f"Built {len(graph_edges)} edges")
 
     # ── Normalise node properties ──────────────────────────────
-    # objectid: required by BloodHound CE's ingest worker as the internal
-    #           node identifier — without it nodes are silently discarded.
-    # name:     BloodHound convention is UPPERCASE for search/dedup.
-    # displayname: human-readable label shown in the UI.
+    # name: BloodHound convention is UPPERCASE for search/dedup.
+    #
+    # Note: objectid and displayname must NOT be set inside the properties
+    # map. BloodHound CE v9.0+ enforces a JSON Schema 'not' constraint that
+    # explicitly rejects both fields there. The node's top-level `id` field
+    # already serves as the internal identifier, and BHE derives the display
+    # label from `kinds` + `name` automatically.
     for node in graph_nodes:
         props = node.setdefault("properties", {})
-
-        # objectid must match the node id exactly
-        props.setdefault("objectid", node["id"])
 
         # Uppercase the primary name used for search
         if "name" in props:
             props["name"] = props["name"].upper()
-
-        # displayname: "Kind name" in original casing for readability
-        if "displayname" not in props:
-            kind = node["kinds"][0] if node.get("kinds") else "Node"
-            raw_name = props.get("objectid", node["id"])
-            props["displayname"] = f"{kind} {raw_name}"
 
     # ── Strip null property values (OpenGraph schema rejects null) ────
     for node in graph_nodes:
@@ -1370,15 +1364,14 @@ def main():
             edge["properties"] = clean_props(edge["properties"])
 
     # ── Assemble output ───────────────────────────────────────
+    # The OpenGraph ingest format accepted by BloodHound CE v9.0+ is a
+    # single top-level "graph" key. A separate "metadata" key at the same
+    # level causes the streaming parser to raise "expected '}', got {"
+    # once the graph object closes and it encounters the next key.
     output = {
         "graph": {
             "nodes": graph_nodes,
             "edges": graph_edges,
-        },
-        "metadata": {
-            "source_kind": "ClusterHound",
-            "context": context_name,
-            "collected_at": datetime.now(timezone.utc).isoformat(),
         }
     }
 
