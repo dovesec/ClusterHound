@@ -1364,15 +1364,18 @@ def main():
             edge["properties"] = clean_props(edge["properties"])
 
     # ── Assemble output ───────────────────────────────────────
-    # The OpenGraph ingest format accepted by BloodHound CE v9.0+ is a
-    # single top-level "graph" key. A separate "metadata" key at the same
-    # level causes the streaming parser to raise "expected '}', got {"
-    # once the graph object closes and it encounters the next key.
+    # source_kind sets the source label shown on nodes in the BH CE UI
+    # (e.g. "ClusterHound | Identity") and causes BH CE to automatically
+    # append "ClusterHound" to each node's kinds array during ingestion,
+    # which is required for compound-label queries like Pod:ClusterHound.
     output = {
+        "metadata": {
+            "source_kind": "ClusterHound",
+        },
         "graph": {
             "nodes": graph_nodes,
             "edges": graph_edges,
-        }
+        },
     }
 
     with open(args.output, "w", encoding="utf-8") as f:
