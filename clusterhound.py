@@ -260,7 +260,7 @@ class RBACResolver:
 def build_cluster_node(context_name):
     return [{
         "id": "cluster/cluster/default",
-        "kinds": ["Cluster"],
+        "kinds": ["CH_Cluster", "CH"],
         "properties": {
             "name": context_name,
         }
@@ -270,7 +270,7 @@ def build_cluster_node(context_name):
 def build_external_actor_node():
     return [{
         "id": "cluster/externalactor/external",
-        "kinds": ["ExternalActor"],
+        "kinds": ["CH_ExternalActor", "CH"],
         "properties": {
             "name": "External Actor",
             "description": (
@@ -310,7 +310,7 @@ def build_node_nodes(pods, nodes_data):
 
         enriched[name] = {
             "id": nid(None, "node", name),
-            "kinds": ["Node"],
+            "kinds": ["CH_Node", "CH"],
             "properties": {
                 "name": name,
                 "controlplane": is_control_plane,
@@ -329,7 +329,7 @@ def build_node_nodes(pods, nodes_data):
         if node_name and node_name not in enriched:
             enriched[node_name] = {
                 "id": nid(None, "node", node_name),
-                "kinds": ["Node"],
+                "kinds": ["CH_Node", "CH"],
                 "properties": {
                     "name": node_name,
                     "controlplane": False,
@@ -356,7 +356,7 @@ def build_pod_nodes(pods):
 
         nodes.append({
             "id": nid(ns, "pod", name),
-            "kinds": ["Pod"],
+            "kinds": ["CH_Pod", "CH"],
             "properties": {
                 "name": name,
                 "namespace": ns,
@@ -391,7 +391,7 @@ def build_container_nodes(pods):
 
             nodes.append({
                 "id": nid(ns, "container", f"{pod_name}/{cname}"),
-                "kinds": ["Container"],
+                "kinds": ["CH_Container", "CH"],
                 "properties": {
                     "name": cname,
                     "namespace": ns,
@@ -426,7 +426,7 @@ def build_service_nodes(services):
 
         nodes.append({
             "id": nid(ns, "service", name),
-            "kinds": ["Service"],
+            "kinds": ["CH_Service", "CH"],
             "properties": {
                 "name": name,
                 "namespace": ns,
@@ -449,7 +449,7 @@ def build_secret_nodes(secrets):
 
         nodes.append({
             "id": nid(ns, "secret", name),
-            "kinds": ["Secret"],
+            "kinds": ["CH_Secret", "CH"],
             "properties": {
                 "name": name,
                 "namespace": ns,
@@ -469,7 +469,7 @@ def build_identity_nodes(serviceaccounts):
 
         nodes.append({
             "id": nid(ns, "serviceaccount", name),
-            "kinds": ["Identity"],
+            "kinds": ["CH_Identity", "CH"],
             "properties": {
                 "name": name,
                 "namespace": ns,
@@ -499,7 +499,7 @@ def build_user_group_nodes(rolebindings, clusterrolebindings):
                     seen.add(node_id_str)
                     nodes.append({
                         "id": node_id_str,
-                        "kinds": ["Identity"],
+                        "kinds": ["CH_Identity", "CH"],
                         "properties": {
                             "name": name,
                             "namespace": "",
@@ -512,7 +512,7 @@ def build_user_group_nodes(rolebindings, clusterrolebindings):
                     seen.add(node_id_str)
                     nodes.append({
                         "id": node_id_str,
-                        "kinds": ["Identity"],
+                        "kinds": ["CH_Identity", "CH"],
                         "properties": {
                             "name": name,
                             "namespace": "",
@@ -594,7 +594,7 @@ def build_volume_nodes(pods, pvcs, pvs):
 
             nodes.append({
                 "id": vol_id,
-                "kinds": ["Volume"],
+                "kinds": ["CH_Volume", "CH"],
                 "properties": {
                     "name": vol_name,
                     "namespace": ns,
@@ -614,7 +614,7 @@ def build_role_nodes(roles, clusterroles):
         name = meta["name"]
         nodes.append({
             "id": nid(ns, "role", name),
-            "kinds": ["Role"],
+            "kinds": ["CH_Role", "CH"],
             "properties": {
                 "name": name,
                 "namespace": ns,
@@ -625,7 +625,7 @@ def build_role_nodes(roles, clusterroles):
         name = meta["name"]
         nodes.append({
             "id": nid(None, "clusterrole", name),
-            "kinds": ["ClusterRole"],
+            "kinds": ["CH_ClusterRole", "CH"],
             "properties": {
                 "name": name,
             }
@@ -647,7 +647,7 @@ def build_namespace_nodes(pods, services, secrets, serviceaccounts, workloads=No
     return [
         {
             "id": nid(None, "namespace", ns),
-            "kinds": ["Namespace"],
+            "kinds": ["CH_Namespace", "CH"],
             "properties": {"name": ns},
         }
         for ns in sorted(namespaces)
@@ -663,7 +663,7 @@ def build_binding_nodes(rolebindings, clusterrolebindings):
         role_ref = rb.get("roleRef", {})
         nodes.append({
             "id": nid(ns, "rolebinding", name),
-            "kinds": ["RoleBinding"],
+            "kinds": ["CH_RoleBinding", "CH"],
             "properties": {
                 "name": name,
                 "namespace": ns,
@@ -677,7 +677,7 @@ def build_binding_nodes(rolebindings, clusterrolebindings):
         role_ref = crb.get("roleRef", {})
         nodes.append({
             "id": nid(None, "clusterrolebinding", name),
-            "kinds": ["ClusterRoleBinding"],
+            "kinds": ["CH_ClusterRoleBinding", "CH"],
             "properties": {
                 "name": name,
                 "rolerefname": role_ref.get("name", ""),
@@ -697,7 +697,7 @@ def build_imds_nodes(nodes_data):
         if provider_id.startswith("aws://") or "eks.amazonaws.com" in label_str:
             return [{
                 "id": "cluster/imdsservice/aws-imds",
-                "kinds": ["IMDSService"],
+                "kinds": ["CH_IMDSService", "CH"],
                 "properties": {
                     "name": "AWS IMDS",
                     "provider": "AWS",
@@ -711,7 +711,7 @@ def build_imds_nodes(nodes_data):
         elif provider_id.startswith("azure://") or "kubernetes.azure.com" in label_str:
             return [{
                 "id": "cluster/imdsservice/azure-imds",
-                "kinds": ["IMDSService"],
+                "kinds": ["CH_IMDSService", "CH"],
                 "properties": {
                     "name": "Azure IMDS",
                     "provider": "Azure",
@@ -725,7 +725,7 @@ def build_imds_nodes(nodes_data):
         elif provider_id.startswith("gce://") or "cloud.google.com" in label_str:
             return [{
                 "id": "cluster/imdsservice/gcp-metadata",
-                "kinds": ["IMDSService"],
+                "kinds": ["CH_IMDSService", "CH"],
                 "properties": {
                     "name": "GCP Metadata Server",
                     "provider": "GCP",
@@ -752,7 +752,7 @@ def build_workload_nodes(workloads):
             name = meta["name"]
             nodes.append({
                 "id": nid(ns, kind.lower(), name),
-                "kinds": ["Workload"],
+                "kinds": ["CH_Workload", "CH"],
                 "properties": {
                     "name": name,
                     "namespace": ns,
@@ -850,7 +850,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
             if pod_ns != svc_ns:
                 continue
             if all(pod_labels.get(k) == v for k, v in selector.items()):
-                eb.add(svc_id, nid(pod_ns, "pod", pod_name), "entryPoint")
+                eb.add(svc_id, nid(pod_ns, "pod", pod_name), "CH_entryPoint")
 
     # --- Pod-level node escape edges and container edges ---
     for pod in pods:
@@ -865,11 +865,11 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
             k8s_node_id = nid(None, "node", k8s_node_name)
 
             if spec.get("hostPID"):
-                eb.add(pod_id, k8s_node_id, "podHostPID")
+                eb.add(pod_id, k8s_node_id, "CH_podHostPID")
             if spec.get("hostNetwork"):
-                eb.add(pod_id, k8s_node_id, "podHostNetwork")
+                eb.add(pod_id, k8s_node_id, "CH_podHostNetwork")
             if spec.get("hostIPC"):
-                eb.add(pod_id, k8s_node_id, "podHostIPC")
+                eb.add(pod_id, k8s_node_id, "CH_podHostIPC")
 
             # podPrivileged: any container in this pod running privileged
             all_containers = (
@@ -879,7 +879,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
             )
             for container in all_containers:
                 if container.get("securityContext", {}).get("privileged"):
-                    eb.add(pod_id, k8s_node_id, "podPrivileged",
+                    eb.add(pod_id, k8s_node_id, "CH_podPrivileged",
                            {"containername": container["name"]})
                     break  # one edge per pod is sufficient
 
@@ -899,7 +899,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
                     break
 
         if token_mounted:
-            eb.add(pod_id, sa_id, "compromiseServiceAccount")
+            eb.add(pod_id, sa_id, "CH_compromiseServiceAccount")
 
         all_containers = (
             spec.get("containers", [])
@@ -915,9 +915,9 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
                 vol_id = nid(ns, "volume", f"{pod_name}/{vol_name}")
                 props = {"mountpath": vm.get("mountPath", ""), "containername": cname}
                 if vm.get("readOnly", False):
-                    eb.add(pod_id, vol_id, "hasReadVolume", props)
+                    eb.add(pod_id, vol_id, "CH_hasReadVolume", props)
                 else:
-                    eb.add(pod_id, vol_id, "hasWriteVolume", props)
+                    eb.add(pod_id, vol_id, "CH_hasWriteVolume", props)
 
     # --- bindsRole: Binding → Role/ClusterRole ---
     for rb in rolebindings:
@@ -928,11 +928,11 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
         if role_ref.get("kind") == "Role":
             target = nid(rb_meta["namespace"], "role", role_ref.get("name", ""))
             if target in role_id_set:
-                eb.add(rb_id, target, "bindsRole")
+                eb.add(rb_id, target, "CH_bindsRole")
         elif role_ref.get("kind") == "ClusterRole":
             target = nid(None, "clusterrole", role_ref.get("name", ""))
             if target in cr_id_set:
-                eb.add(rb_id, target, "bindsRole")
+                eb.add(rb_id, target, "CH_bindsRole")
 
     for crb in clusterrolebindings:
         crb_meta = crb["metadata"]
@@ -942,7 +942,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
         if role_ref.get("kind") == "ClusterRole":
             target = nid(None, "clusterrole", role_ref.get("name", ""))
             if target in cr_id_set:
-                eb.add(crb_id, target, "bindsRole")
+                eb.add(crb_id, target, "CH_bindsRole")
 
     # --- unauthAPIAccess / unauthKubeletAccess: ExternalActor → Node ---
     return eb
@@ -973,11 +973,11 @@ def build_unauth_edges(nodes_data):
         )
 
         # All nodes have a Kubelet API
-        eb.add(external_id, node_id_str, "unauthKubeletAccess", unauth_props)
+        eb.add(external_id, node_id_str, "CH_unauthKubeletAccess", unauth_props)
 
         # Only control plane nodes host the API server
         if is_control_plane:
-            eb.add(external_id, node_id_str, "unauthAPIAccess", unauth_props)
+            eb.add(external_id, node_id_str, "CH_unauthAPIAccess", unauth_props)
 
     return eb
 
@@ -1009,7 +1009,7 @@ def build_imds_edges(pods, imds_nodes):
         meta = pod["metadata"]
         ns = meta["namespace"]
         pod_name = meta["name"]
-        eb.add(nid(ns, "pod", pod_name), imds_id, "accessIMDS", imds_props)
+        eb.add(nid(ns, "pod", pod_name), imds_id, "CH_accessIMDS", imds_props)
 
     return eb
 
@@ -1108,12 +1108,12 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
                     ns_full_access.setdefault(identity_id, set()).add(p["namespace"])
 
     for identity_id in cluster_full_access:
-        eb.add(identity_id, cluster_id, "fullAccess")
+        eb.add(identity_id, cluster_id, "CH_fullAccess")
 
     for identity_id, namespaces in ns_full_access.items():
         if identity_id not in cluster_full_access:
             for ns in namespaces:
-                eb.add(identity_id, nid(None, "namespace", ns), "fullAccess")
+                eb.add(identity_id, nid(None, "namespace", ns), "CH_fullAccess")
 
     for identity_id, perms in identity_perms.items():
         if identity_id in cluster_full_access:
@@ -1160,75 +1160,75 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
             # canExec
             if match(r, "pods") and sub == "exec" and match(v, "create"):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canExec")
+                    eb.add(identity_id, t, "CH_canExec")
 
             # canAttach
             if match(r, "pods") and sub == "attach" and match(v, "create"):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canAttach")
+                    eb.add(identity_id, t, "CH_canAttach")
 
             # canPortForward
             if match(r, "pods") and sub == "portforward" and match(v, "create"):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canPortForward")
+                    eb.add(identity_id, t, "CH_canPortForward")
 
             # canCreateEphemeral
             if match(r, "pods") and sub == "ephemeralcontainers" and match(v, "update"):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canCreateEphemeral")
+                    eb.add(identity_id, t, "CH_canCreateEphemeral")
 
             # canPatch on pods
             if match(r, "pods") and sub is None and (match(v, "patch") or match(v, "update")):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canPatch", {"resource": "Pod"})
+                    eb.add(identity_id, t, "CH_canPatch", {"resource": "Pod"})
 
             # canPatch on workload resource types → specific Workload nodes or namespace/cluster
             for wl_resource, wl_kind in WORKLOAD_KINDS:
                 if match(r, wl_resource) and sub is None and (match(v, "patch") or match(v, "update")):
                     for t in workload_patch_targets(wl_resource, wl_kind):
-                        eb.add(identity_id, t, "canPatch", {"resource": wl_kind})
+                        eb.add(identity_id, t, "CH_canPatch", {"resource": wl_kind})
 
             # canCreate on pods — resource property distinguishes from workload create
             if match(r, "pods") and sub is None and match(v, "create"):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "canCreate", {"resource": "Pod"})
+                    eb.add(identity_id, t, "CH_canCreate", {"resource": "Pod"})
 
             # canCreate on workload resource types → namespace/cluster with resource property
             for wl_resource, wl_kind in WORKLOAD_KINDS:
                 if match(r, wl_resource) and sub is None and match(v, "create"):
-                    eb.add(identity_id, target, "canCreate", {"resource": wl_kind})
+                    eb.add(identity_id, target, "CH_canCreate", {"resource": wl_kind})
 
             # secretsRead
             if match(r, "secrets") and sub is None and (match(v, "get") or match(v, "list")):
                 for t in secret_targets():
-                    eb.add(identity_id, t, "secretsRead")
+                    eb.add(identity_id, t, "CH_secretsRead")
 
             # canCreateToken: create on serviceaccounts/token (TokenRequest API)
             if match(r, "serviceaccounts") and sub == "token" and match(v, "create"):
                 for t in sa_targets():
-                    eb.add(identity_id, t, "canCreateToken")
+                    eb.add(identity_id, t, "CH_canCreateToken")
 
             # nodesProxyRCE → single cluster edge
             if match(r, "nodes") and sub == "proxy" and match(v, "get"):
-                eb.add(identity_id, cluster_id, "nodesProxyRCE")
+                eb.add(identity_id, cluster_id, "CH_nodesProxyRCE")
 
             # canBind: rolebindings → namespace, clusterrolebindings → cluster
             if match(r, "rolebindings") and (match(v, "create") or match(v, "patch") or match(v, "update")):
-                eb.add(identity_id, target, "canBind")
+                eb.add(identity_id, target, "CH_canBind")
             if match(r, "clusterrolebindings") and (match(v, "create") or match(v, "patch") or match(v, "update")):
-                eb.add(identity_id, cluster_id, "canBind")
+                eb.add(identity_id, cluster_id, "CH_canBind")
 
             # canEscalate: roles → namespace, clusterroles → cluster
             if match(r, "roles") and match(v, "escalate"):
-                eb.add(identity_id, target, "canEscalate")
+                eb.add(identity_id, target, "CH_canEscalate")
             if match(r, "clusterroles") and match(v, "escalate"):
-                eb.add(identity_id, cluster_id, "canEscalate")
+                eb.add(identity_id, cluster_id, "CH_canEscalate")
 
             # canImpersonate → namespace/cluster with resource type as context
             if match(v, "impersonate") and match(r, "serviceaccounts"):
-                eb.add(identity_id, target, "canImpersonate", {"resource": "serviceaccounts"})
+                eb.add(identity_id, target, "CH_canImpersonate", {"resource": "serviceaccounts"})
             if match(v, "impersonate") and (match(r, "users") or match(r, "groups")):
-                eb.add(identity_id, cluster_id, "canImpersonate", {"resource": r})
+                eb.add(identity_id, cluster_id, "CH_canImpersonate", {"resource": r})
 
     return eb
 
@@ -1369,9 +1369,6 @@ def main():
     # append "ClusterHound" to each node's kinds array during ingestion,
     # which is required for compound-label queries like Pod:ClusterHound.
     output = {
-        "metadata": {
-            "source_kind": "ClusterHound",
-        },
         "graph": {
             "nodes": graph_nodes,
             "edges": graph_edges,

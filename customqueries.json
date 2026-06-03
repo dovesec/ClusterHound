@@ -2,119 +2,119 @@
   "queries": [
     {
       "name": "[ClusterHound] All Nodes of a Specific Type",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Pod:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Pod) RETURN p" }]
     },
     {
       "name": "[ClusterHound] All Edges of a Specific Type",
-      "queryList": [{ "final": true, "query": "MATCH p=(a:ClusterHound)-[:canExec]->(b:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(a:CH)-[:CH_canExec]->(b:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] All Edges from a Specific Object",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:ClusterHound {objectid: 'NAMESPACE/KIND/NAME'})-[r]->(m:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH {objectid: 'NAMESPACE/KIND/NAME'})-[r]->(m:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Specific Edge from a Specific Object",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:ClusterHound {objectid: 'NAMESPACE/KIND/NAME'})-[:canExec]->(m:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH {objectid: 'NAMESPACE/KIND/NAME'})-[:CH_canExec]->(m:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities with Full Cluster Access",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:ClusterHound)-[:fullAccess]->(c:Cluster:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH)-[:CH_fullAccess]->(c:CH_Cluster) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities with Full Namespace Access",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:ClusterHound)-[:fullAccess]->(ns:Namespace:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH)-[:CH_fullAccess]->(ns:CH_Namespace) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Nodes Proxy RCE",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:nodesProxyRCE]->(c:Cluster:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_nodesProxyRCE]->(c:CH_Cluster) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Unauthenticated API and Kubelet Access",
-      "queryList": [{ "final": true, "query": "MATCH p=(e:ExternalActor:ClusterHound)-[r:unauthAPIAccess|unauthKubeletAccess]->(n:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(e:CH_ExternalActor)-[r:CH_unauthAPIAccess|CH_unauthKubeletAccess]->(n:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Shortest Path from Identity to Full Cluster Compromise",
-      "queryList": [{ "final": true, "query": "MATCH p=shortestPath((n:Identity:ClusterHound)-[*1..10]->(c:Cluster:ClusterHound)) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=shortestPath((n:CH_Identity)-[*1..10]->(c:CH_Cluster)) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Bind Roles",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canBind]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canBind]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Escalate Roles",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canEscalate]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canEscalate]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities Holding Both canBind and canEscalate",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:ClusterHound)-[:canBind]->(r:ClusterHound)<-[:canEscalate]-(n) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH)-[:CH_canBind]->(r:CH)<-[:CH_canEscalate]-(n) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Create Service Account Tokens",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canCreateToken]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canCreateToken]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Impersonate",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canImpersonate]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canImpersonate]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Privileged Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:Pod:ClusterHound)-[:podPrivileged]->(n:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_podPrivileged]->(n:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Host Namespace Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:Pod:ClusterHound)-[r:podHostPID|podHostNetwork|podHostIPC]->(n:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[r:CH_podHostPID|CH_podHostNetwork|CH_podHostIPC]->(n:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Shortest Paths from Pod to Critical Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:Pod:ClusterHound)-[:compromiseServiceAccount]->(i:Identity:ClusterHound)-[r:fullAccess|nodesProxyRCE|canBind|canEscalate|canExec|canCreate|canPatch|canCreateEphemeral|canImpersonate|canCreateToken|secretsRead]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreate|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Pods Reaching IMDS",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:Pod:ClusterHound)-[:accessIMDS]->(imds:IMDSService:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_accessIMDS]->(imds:CH_IMDSService) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Exec into Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canExec]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canExec]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Create Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canCreate]->(t:ClusterHound) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canCreate]->(t:CH) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Create Workloads",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canCreate]->(t:ClusterHound) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canCreate]->(t:CH) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Patch Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canPatch]->(t:ClusterHound) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canPatch]->(t:CH) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Patch Workloads",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[e:canPatch]->(t:ClusterHound) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canPatch]->(t:CH) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Read Secrets",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:secretsRead]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Port Forward",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:Identity:ClusterHound)-[:canPortForward]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canPortForward]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] All Entry Points",
-      "queryList": [{ "final": true, "query": "MATCH p=(svc:Service:ClusterHound)-[:entryPoint]->(pod:Pod:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Full Attack Chain - Entry Point to Critical Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(svc:Service:ClusterHound)-[:entryPoint]->(pod:Pod:ClusterHound)-[:compromiseServiceAccount]->(i:Identity:ClusterHound)-[r:fullAccess|nodesProxyRCE|canBind|canEscalate|canExec|canCreate|canPatch|canCreateEphemeral|canImpersonate|canCreateToken|secretsRead]->(t:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreate|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Pods with Write Volume Mounts",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:Pod:ClusterHound)-[:hasWriteVolume]->(v:Volume:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_hasWriteVolume]->(v:CH_Volume) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Pods with Read Volume Mounts",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:Pod:ClusterHound)-[:hasReadVolume]->(v:Volume:ClusterHound) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_hasReadVolume]->(v:CH_Volume) RETURN p" }]
     }
   ]
 }
