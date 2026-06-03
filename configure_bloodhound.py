@@ -86,9 +86,10 @@ class BHSession:
         r.raise_for_status()
 
     def push_schema(self, schema: dict) -> None:
+        payload = {"custom_types": schema.get("custom_types", {})}
         r = self._s.post(
             f"{self.base}/api/v2/custom-nodes",
-            json=schema,
+            json=payload,
             headers={**self._auth(), "Content-Type": "application/json"},
         )
         r.raise_for_status()
@@ -155,6 +156,12 @@ def wipe_schema(bh: BHSession) -> None:
 def register_schema(bh: BHSession, path: str) -> None:
     schema = load_json(path, "schema")
     log.info("Registering schema from %s...", path)
+    if schema.get("custom_edges"):
+        log.warning(
+            "custom_edges are defined in %s but BloodHound CE 9 has no edge "
+            "registration endpoint — edge labels will not be styled in the UI.",
+            path,
+        )
     bh.push_schema(schema)
     log.info("Schema registered successfully")
 
