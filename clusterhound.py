@@ -59,6 +59,37 @@ def get_items(resource, cluster_scoped=False, namespace=None):
 # Node ID helpers and property utilities
 # ============================================================
 
+def sanitise_cluster_name(context_name: str) -> str:
+    """Derive a clean cluster name from a kubectl context name.
+
+    Handles verbose context formats produced by common Kubernetes distributions:
+    - EKS:       arn:aws:eks:<region>:<account>:cluster/<name>  → <name>
+    - GKE:       gke_<project>_<region>_<name>                  → <name>
+    - OpenShift: <namespace>/<server:port>/<user>               → <server hostname>
+    - AKS:       context is typically the cluster name already, no stripping needed.
+    Falls back to the raw context name for simple or unrecognised formats.
+    """
+    # EKS ARN: arn:aws:eks:us-east-1:123456789012:cluster/my-cluster
+    if context_name.startswith("arn:aws:eks:"):
+        return context_name.rsplit("/", 1)[-1]
+
+    # GKE: gke_my-project_us-central1_my-cluster
+    if context_name.startswith("gke_"):
+        parts = context_name.split("_")
+        if len(parts) >= 4:
+            return parts[-1]
+
+    # OpenShift: namespace/api.cluster.example.com:6443/user@company.com
+    parts = context_name.split("/")
+    if len(parts) == 3:
+        server = parts[1]
+        if "://" in server:
+            server = server.split("://", 1)[1]
+        return server.split(":")[0]
+
+    return context_name
+
+
 def clean_props(props):
     """
     Remove None values from a property dict before output.
@@ -97,11 +128,16 @@ WORKLOAD_KINDS = [
 # Data collection
 # ============================================================
 
-def collect_all(namespace=None):
-    """Collect all required Kubernetes resources via kubectl."""
+def collect_all(namespaces=None):
+    """Collect all required Kubernetes resources via kubectl.
+
+    namespaces: list of namespace strings to scope collection to, or None for
+    cluster-wide collection. When multiple namespaces are provided, results are
+    merged across all of them.
+    """
     logging.info("Starting cluster data collection...")
-    if namespace:
-        logging.info(f"  Scope: namespace '{namespace}'")
+    if namespaces:
+        logging.info(f"  Scope: namespaces {namespaces}")
     else:
         logging.info("  Scope: cluster-wide")
 
@@ -118,7 +154,13 @@ def collect_all(namespace=None):
     data = {}
     for resource in namespaced:
         logging.info(f"  Collecting {resource}...")
-        data[resource] = get_items(resource, cluster_scoped=False, namespace=namespace)
+        if namespaces:
+            items = []
+            for ns in namespaces:
+                items += get_items(resource, cluster_scoped=False, namespace=ns)
+            data[resource] = items
+        else:
+            data[resource] = get_items(resource, cluster_scoped=False, namespace=None)
         logging.debug(f"    -> {len(data[resource])} items")
 
     for resource in cluster_scoped:
@@ -313,12 +355,12 @@ def build_node_nodes(pods, nodes_data):
             "kinds": ["CH_Node", "CH"],
             "properties": {
                 "name": name,
-                "controlplane": is_control_plane,
-                "internalip": internal_ip,
-                "kubeletversion": node_info.get("kubeletVersion", ""),
-                "osimage": node_info.get("osImage", ""),
-                "kernelversion": node_info.get("kernelVersion", ""),
-                "containerruntime": node_info.get("containerRuntimeVersion", ""),
+                "Control plane": is_control_plane,
+                "Internal IP": internal_ip,
+                "Kubelet version": node_info.get("kubeletVersion", ""),
+                "OS image": node_info.get("osImage", ""),
+                "Kernel version": node_info.get("kernelVersion", ""),
+                "Container runtime": node_info.get("containerRuntimeVersion", ""),
             }
         }
 
@@ -332,12 +374,12 @@ def build_node_nodes(pods, nodes_data):
                 "kinds": ["CH_Node", "CH"],
                 "properties": {
                     "name": node_name,
-                    "controlplane": False,
-                    "internalip": "",
-                    "kubeletversion": "",
-                    "osimage": "",
-                    "kernelversion": "",
-                    "containerruntime": "",
+                    "Control plane": False,
+                    "Internal IP": "",
+                    "Kubelet version": "",
+                    "OS image": "",
+                    "Kernel version": "",
+                    "Container runtime": "",
                     "placeholder": True,
                 }
             }
@@ -360,12 +402,12 @@ def build_pod_nodes(pods):
             "properties": {
                 "name": name,
                 "namespace": ns,
-                "nodename": spec.get("nodeName", ""),
-                "serviceaccountname": spec.get("serviceAccountName", "default"),
+                "Node name": spec.get("nodeName", ""),
+                "Service account name": spec.get("serviceAccountName", "default"),
                 "phase": status.get("phase", ""),
-                "hostpid": spec.get("hostPID", False),
-                "hostnetwork": spec.get("hostNetwork", False),
-                "hostipc": spec.get("hostIPC", False),
+                "Host PID": spec.get("hostPID", False),
+                "Host network": spec.get("hostNetwork", False),
+                "Host IPC": spec.get("hostIPC", False),
             }
         })
     return nodes
@@ -395,13 +437,13 @@ def build_container_nodes(pods):
                 "properties": {
                     "name": cname,
                     "namespace": ns,
-                    "podname": pod_name,
+                    "Pod name": pod_name,
                     "image": container.get("image", ""),
                     "privileged": sc.get("privileged", False),
-                    "allowprivilegeescalation": sc.get("allowPrivilegeEscalation", True),
-                    "readonlyrootfilesystem": sc.get("readOnlyRootFilesystem", False),
-                    "runasuser": sc.get("runAsUser"),
-                    "runasnonroot": sc.get("runAsNonRoot", False),
+                    "Allow privilege escalation": sc.get("allowPrivilegeEscalation", True),
+                    "Read only root filesystem": sc.get("readOnlyRootFilesystem", False),
+                    "Run as user": sc.get("runAsUser"),
+                    "Run as non root": sc.get("runAsNonRoot", False),
                 }
             })
     return nodes
@@ -431,9 +473,9 @@ def build_service_nodes(services):
                 "name": name,
                 "namespace": ns,
                 "type": spec.get("type", "ClusterIP"),
-                "clusterIP": spec.get("clusterIP", ""),
+                "Cluster IP": spec.get("clusterIP", ""),
                 "ports": ", ".join(port_strs) if port_strs else "",
-                "externalips": spec.get("externalIPs", []),
+                "External IPs": spec.get("externalIPs", []),
                 "selector": json.dumps(spec.get("selector") or {}),
             }
         })
@@ -474,7 +516,7 @@ def build_identity_nodes(serviceaccounts):
                 "name": name,
                 "namespace": ns,
                 "kind": "ServiceAccount",
-                "automounttoken": sa.get("automountServiceAccountToken", True),
+                "Automount token": sa.get("automountServiceAccountToken", True),
             }
         })
     return nodes
@@ -598,8 +640,8 @@ def build_volume_nodes(pods, pvcs, pvs):
                 "properties": {
                     "name": vol_name,
                     "namespace": ns,
-                    "podname": pod_name,
-                    "volumetype": vol_type,
+                    "Pod name": pod_name,
+                    "Volume type": vol_type,
                     "source": source,
                 }
             })
@@ -667,8 +709,8 @@ def build_binding_nodes(rolebindings, clusterrolebindings):
             "properties": {
                 "name": name,
                 "namespace": ns,
-                "rolerefname": role_ref.get("name", ""),
-                "rolerefkind": role_ref.get("kind", ""),
+                "Role ref name": role_ref.get("name", ""),
+                "Role ref kind": role_ref.get("kind", ""),
             }
         })
     for crb in clusterrolebindings:
@@ -680,8 +722,8 @@ def build_binding_nodes(rolebindings, clusterrolebindings):
             "kinds": ["CH_ClusterRoleBinding", "CH"],
             "properties": {
                 "name": name,
-                "rolerefname": role_ref.get("name", ""),
-                "rolerefkind": role_ref.get("kind", ""),
+                "Role ref name": role_ref.get("name", ""),
+                "Role ref kind": role_ref.get("kind", ""),
             }
         })
     return nodes
@@ -880,7 +922,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
             for container in all_containers:
                 if container.get("securityContext", {}).get("privileged"):
                     eb.add(pod_id, k8s_node_id, "CH_podPrivileged",
-                           {"containername": container["name"]})
+                           {"Container name": container["name"]})
                     break  # one edge per pod is sufficient
 
         # --- compromiseServiceAccount: Pod → Identity ---
@@ -913,7 +955,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
             for vm in container.get("volumeMounts", []):
                 vol_name = vm.get("name", "")
                 vol_id = nid(ns, "volume", f"{pod_name}/{vol_name}")
-                props = {"mountpath": vm.get("mountPath", ""), "containername": cname}
+                props = {"Mount path": vm.get("mountPath", ""), "Container name": cname}
                 if vm.get("readOnly", False):
                     eb.add(pod_id, vol_id, "CH_hasReadVolume", props)
                 else:
@@ -1255,9 +1297,11 @@ def main():
         "-n", "--namespace",
         default=None,
         metavar="NAMESPACE",
-        help="Collect only resources from a specific namespace (default: cluster-wide). "
+        help="Collect only from specific namespace(s) (default: cluster-wide). "
+             "Comma-separate multiple namespaces: -n default,kube-system. "
              "Node nodes are synthesized from pod specs when the nodes API is inaccessible.",
     )
+
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
@@ -1276,9 +1320,13 @@ def main():
         logging.error("kubectl is not available or no current context is set.")
         sys.exit(1)
     logging.info(f"Target context: {context_name}")
+    cluster_name = sanitise_cluster_name(context_name)
+    if cluster_name != context_name:
+        logging.info(f"Cluster name:   {cluster_name}")
 
     # ── Collect ──────────────────────────────────────────────
-    data = collect_all(namespace=args.namespace)
+    namespaces = [ns.strip() for ns in args.namespace.split(",")] if args.namespace else None
+    data = collect_all(namespaces=namespaces)
 
     pods                = data["pods"]
     services            = data["services"]
@@ -1299,7 +1347,7 @@ def main():
     imds_nodes = build_imds_nodes(nodes_k8s)
 
     graph_nodes = (
-        build_cluster_node(context_name)
+        build_cluster_node(cluster_name)
         + build_external_actor_node()
         + build_node_nodes(pods, nodes_k8s)
         + build_namespace_nodes(pods, services, secrets, serviceaccounts, workloads)
@@ -1341,19 +1389,14 @@ def main():
     logging.info(f"Built {len(graph_edges)} edges")
 
     # ── Normalise node properties ──────────────────────────────
-    # name: BloodHound convention is UPPERCASE for search/dedup.
-    #
     # Note: objectid and displayname must NOT be set inside the properties
     # map. BloodHound CE v9.0+ enforces a JSON Schema 'not' constraint that
     # explicitly rejects both fields there. The node's top-level `id` field
     # already serves as the internal identifier, and BHE derives the display
     # label from `kinds` + `name` automatically.
-    for node in graph_nodes:
-        props = node.setdefault("properties", {})
-
-        # Uppercase the primary name used for search
-        if "name" in props:
-            props["name"] = props["name"].upper()
+    #
+    # Node names are kept in their original Kubernetes casing (lowercase) so
+    # they can be copied directly into kubectl commands.
 
     # ── Strip null property values (OpenGraph schema rejects null) ────
     for node in graph_nodes:

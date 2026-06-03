@@ -163,8 +163,24 @@ def import_queries(bh: BHSession, path: str, wipe: bool = False) -> None:
 
 # ----------------------------------------------------------------------- main
 
+def strip_quotes(s: str) -> str:
+    """Strip surrounding single or double quotes from a string.
+
+    Some shells (particularly PowerShell on Windows) pass quote characters
+    through to the process rather than stripping them, causing auth failures
+    when the literal quote ends up as part of the credential value.
+    """
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in ('"', "'"):
+        return s[1:-1]
+    return s
+
+
 def main():
     args = parse_args()
+    args.url      = strip_quotes(args.url)
+    args.username = strip_quotes(args.username)
+    args.password = strip_quotes(args.password)
+
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s  %(levelname)-8s  %(message)s",

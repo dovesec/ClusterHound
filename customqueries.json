@@ -115,6 +115,18 @@
     {
       "name": "[ClusterHound] Pods with Read Volume Mounts",
       "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_hasReadVolume]->(v:CH_Volume) RETURN p" }]
+    },
+    {
+      "name": "[ClusterHound] All Edges from a Namespace",
+      "queryList": [{ "final": true, "query": "MATCH p=(src:CH)-[r]->(tgt:CH) WHERE src.namespace = 'namespace' RETURN p" }]
+    },
+    {
+      "name": "[ClusterHound] Cross-Namespace and Cluster-Wide Edges from a Namespace",
+      "queryList": [{ "final": true, "query": "MATCH p=(src:CH)-[r]->(tgt:CH) WHERE src.namespace = 'namespace' AND (tgt.namespace IS NULL OR tgt.namespace = '' OR tgt.namespace <> 'namespace') RETURN p" }]
+    },
+    {
+      "name": "[ClusterHound] Pods in Namespace via Service Accounts to All Permissions",
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod {namespace: 'namespace'})-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r]->(t:CH) RETURN p" }]
     }
   ]
 }
