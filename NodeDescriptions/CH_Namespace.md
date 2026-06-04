@@ -7,3 +7,9 @@ A Kubernetes namespace, derived from collected resources. Acts as the target for
 ## Scope
 
 Cluster
+
+## Properties
+
+| Property | Description |
+|----------|-------------|
+| name | Namespace name |

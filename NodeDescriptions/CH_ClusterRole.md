@@ -7,3 +7,9 @@ A cluster-scoped RBAC ClusterRole. Target of `CH_bindsRole` edges from RoleBindi
 ## Scope
 
 Cluster
+
+## Properties
+
+| Property | Description |
+|----------|-------------|
+| name | ClusterRole name |

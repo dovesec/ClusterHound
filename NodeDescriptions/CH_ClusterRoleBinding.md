@@ -7,3 +7,11 @@ A cluster-scoped RBAC ClusterRoleBinding. Source of `CH_bindsRole` edges to the 
 ## Scope
 
 Cluster
+
+## Properties
+
+| Property | Description |
+|----------|-------------|
+| name | ClusterRoleBinding name |
+| Role ref name | Name of the referenced ClusterRole |
+| Role ref kind | Always `ClusterRole` |

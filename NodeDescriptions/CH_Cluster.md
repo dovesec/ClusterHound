@@ -7,3 +7,9 @@ Represents the target Kubernetes cluster. Acts as the convergence point for clus
 ## Scope
 
 Cluster
+
+## Properties
+
+| Property | Description |
+|----------|-------------|
+| name | Cluster display name, derived from the kubectl context and auto-sanitised for EKS ARN, GKE, and OpenShift formats |

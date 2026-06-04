@@ -7,3 +7,10 @@ Synthetic node representing an unauthenticated external threat actor with networ
 ## Scope
 
 Cluster
+
+## Properties
+
+| Property | Description |
+|----------|-------------|
+| name | Always "External Actor" |
+| description | Human-readable description of the node's role |

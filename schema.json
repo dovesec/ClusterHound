@@ -1,0 +1,284 @@
+{
+  "schema": {
+    "name": "SCH",
+    "display_name": "ClusterHound",
+    "version": "v1.0.0",
+    "namespace": "CH"
+  },
+  "node_kinds": [
+    {
+      "name": "CH_Cluster",
+      "display_name": "Cluster",
+      "description": "The target Kubernetes cluster. Convergence point for cluster-wide attack paths.",
+      "is_display_kind": true,
+      "icon": "circle-nodes",
+      "color": "#326CE5"
+    },
+    {
+      "name": "CH_ExternalActor",
+      "display_name": "External Actor",
+      "description": "Synthetic unauthenticated external threat actor. Source of unauthenticated access edges.",
+      "is_display_kind": true,
+      "icon": "user-secret",
+      "color": "#EF5350"
+    },
+    {
+      "name": "CH_Node",
+      "display_name": "Node",
+      "description": "Kubernetes worker or control plane node.",
+      "is_display_kind": true,
+      "icon": "server",
+      "color": "#4A90D9"
+    },
+    {
+      "name": "CH_Namespace",
+      "display_name": "Namespace",
+      "description": "Kubernetes namespace. Target for namespace-scoped RBAC edges.",
+      "is_display_kind": true,
+      "icon": "layer-group",
+      "color": "#5FED83"
+    },
+    {
+      "name": "CH_Pod",
+      "display_name": "Pod",
+      "description": "Running Kubernetes pod. Source of host escape, service account compromise, and volume edges.",
+      "is_display_kind": true,
+      "icon": "cube",
+      "color": "#64B5F6"
+    },
+    {
+      "name": "CH_Workload",
+      "display_name": "Workload",
+      "description": "Pod-creating workload controller: Deployment, StatefulSet, DaemonSet, ReplicaSet, ReplicationController, Job, or CronJob.",
+      "is_display_kind": true,
+      "icon": "cubes",
+      "color": "#4DD0E1"
+    },
+    {
+      "name": "CH_Service",
+      "display_name": "Service",
+      "description": "Kubernetes Service. Source of entryPoint edges to matching pods.",
+      "is_display_kind": true,
+      "icon": "door-open",
+      "color": "#FFD166"
+    },
+    {
+      "name": "CH_Secret",
+      "display_name": "Secret",
+      "description": "Kubernetes Secret. Target of secretsRead edges.",
+      "is_display_kind": true,
+      "icon": "key",
+      "color": "#FF7043"
+    },
+    {
+      "name": "CH_Identity",
+      "display_name": "Identity",
+      "description": "Kubernetes ServiceAccount, User, or Group. Source of all RBAC-derived attack edges.",
+      "is_display_kind": true,
+      "icon": "id-card",
+      "color": "#FF8E40"
+    },
+    {
+      "name": "CH_Volume",
+      "display_name": "Volume",
+      "description": "Pod volume mount. Target of hasReadVolume and hasWriteVolume edges.",
+      "is_display_kind": true,
+      "icon": "hard-drive",
+      "color": "#78909C"
+    },
+    {
+      "name": "CH_Role",
+      "display_name": "Role",
+      "description": "Namespaced Kubernetes RBAC Role. Target of bindsRole edges.",
+      "is_display_kind": true,
+      "icon": "scroll",
+      "color": "#BFFFD1"
+    },
+    {
+      "name": "CH_ClusterRole",
+      "display_name": "ClusterRole",
+      "description": "Cluster-scoped Kubernetes RBAC ClusterRole. Target of bindsRole edges.",
+      "is_display_kind": true,
+      "icon": "scroll",
+      "color": "#FFD700"
+    },
+    {
+      "name": "CH_RoleBinding",
+      "display_name": "RoleBinding",
+      "description": "Namespaced RBAC binding. Source of bindsRole edges.",
+      "is_display_kind": true,
+      "icon": "link",
+      "color": "#A0AEC0"
+    },
+    {
+      "name": "CH_ClusterRoleBinding",
+      "display_name": "ClusterRoleBinding",
+      "description": "Cluster-scoped RBAC binding. Source of bindsRole edges.",
+      "is_display_kind": true,
+      "icon": "handshake",
+      "color": "#718096"
+    },
+    {
+      "name": "CH_IMDSService",
+      "display_name": "IMDS Service",
+      "description": "Cloud provider instance metadata endpoint (AWS, Azure, GCP). Target of accessIMDS edges.",
+      "is_display_kind": true,
+      "icon": "cloud",
+      "color": "#AB47BC"
+    }
+  ],
+  "relationship_kinds": [
+    {
+      "name": "CH_fullAccess",
+      "display_name": "Full Access",
+      "description": "Identity holds wildcard RBAC permissions (*/*) granting unrestricted access to a namespace or the entire cluster.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_nodesProxyRCE",
+      "display_name": "Nodes Proxy RCE",
+      "description": "Identity has nodes/proxy GET permission, enabling proxied requests to the Kubelet API and RCE on any node.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_unauthAPIAccess",
+      "display_name": "Unauth API Access",
+      "description": "Kubernetes API server may accept unauthenticated requests (--anonymous-auth). Requires manual verification.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_unauthKubeletAccess",
+      "display_name": "Unauth Kubelet Access",
+      "description": "Kubelet API may be accessible without authentication. Requires manual verification.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_podPrivileged",
+      "display_name": "Pod Privileged",
+      "description": "Pod runs with privileged: true, providing a direct path to the underlying node on container compromise.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_podHostPID",
+      "display_name": "Pod Host PID",
+      "description": "Pod shares the host PID namespace, exposing all host processes and enabling credential harvesting from /proc.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_podHostNetwork",
+      "display_name": "Pod Host Network",
+      "description": "Pod shares the host network namespace, enabling traffic sniffing and network policy bypass.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_podHostIPC",
+      "display_name": "Pod Host IPC",
+      "description": "Pod shares the host IPC namespace, enabling access to host shared memory segments.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canExec",
+      "display_name": "Can Exec",
+      "description": "Identity has pods/exec permission enabling direct command execution in running containers.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canCreate",
+      "display_name": "Can Create",
+      "description": "Identity can create Pods or pod-creating workload controllers, enabling deployment of arbitrary pod specs.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canPatch",
+      "display_name": "Can Patch",
+      "description": "Identity has patch/update permissions on Pods or workload controllers, enabling image replacement or spec modification.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canCreateEphemeral",
+      "display_name": "Can Create Ephemeral",
+      "description": "Identity has pods/ephemeralcontainers update permission, enabling injection of ephemeral debug containers.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canAttach",
+      "display_name": "Can Attach",
+      "description": "Identity has pods/attach permission, enabling attachment to running container processes.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canPortForward",
+      "display_name": "Can Port Forward",
+      "description": "Identity has pods/portforward permission, enabling tunnelling into Pod network stacks for lateral movement.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canBind",
+      "display_name": "Can Bind",
+      "description": "Identity can create or modify RoleBindings or ClusterRoleBindings, enabling privilege assignment.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canEscalate",
+      "display_name": "Can Escalate",
+      "description": "Identity has the escalate verb, allowing creation of roles with permissions beyond their own.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canImpersonate",
+      "display_name": "Can Impersonate",
+      "description": "Identity has impersonate permissions, allowing API requests to be made as other users, groups, or service accounts.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_canCreateToken",
+      "display_name": "Can Create Token",
+      "description": "Identity can mint tokens for ServiceAccounts via the TokenRequest API.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_secretsRead",
+      "display_name": "Secrets Read",
+      "description": "Identity has get or list permissions on Secrets, exposing full secret values.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_compromiseServiceAccount",
+      "display_name": "Compromise Service Account",
+      "description": "Pod mounts a ServiceAccount token, allowing an attacker who controls the pod to use that identity.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_entryPoint",
+      "display_name": "Entry Point",
+      "description": "Service selector matches a running Pod, representing a potential external or internal access path into the cluster.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_accessIMDS",
+      "display_name": "Access IMDS",
+      "description": "Pod can potentially reach the cloud provider instance metadata endpoint. Requires verification.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_hasWriteVolume",
+      "display_name": "Has Write Volume",
+      "description": "Pod has a writable volume mount, potentially allowing modification of sensitive data or binaries.",
+      "is_traversable": false
+    },
+    {
+      "name": "CH_hasReadVolume",
+      "display_name": "Has Read Volume",
+      "description": "Pod has a readable volume mount, potentially exposing sensitive data.",
+      "is_traversable": false
+    },
+    {
+      "name": "CH_bindsRole",
+      "display_name": "Binds Role",
+      "description": "Structural edge linking a RoleBinding or ClusterRoleBinding to the Role or ClusterRole it references.",
+      "is_traversable": false
+    }
+  ],
+  "environments": [],
+  "relationship_findings": []
+}

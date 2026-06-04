@@ -7,3 +7,10 @@ A namespaced RBAC Role. Target of `CH_bindsRole` edges from RoleBindings. Retain
 ## Scope
 
 Namespaced
+
+## Properties
+
+| Property | Description |
+|----------|-------------|
+| name | Role name |
+| namespace | Namespace the Role belongs to |
