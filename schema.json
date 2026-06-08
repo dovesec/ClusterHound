@@ -183,8 +183,8 @@
       "is_traversable": true
     },
     {
-      "name": "CH_canCreate",
-      "display_name": "Can Create",
+      "name": "CH_canCreateWorkload",
+      "display_name": "Can Create Workload",
       "description": "Identity can create Pods or pod-creating workload controllers, enabling deployment of arbitrary pod specs.",
       "is_traversable": true
     },
@@ -240,6 +240,12 @@
       "name": "CH_secretsRead",
       "display_name": "Secrets Read",
       "description": "Identity has get or list permissions on Secrets, exposing full secret values.",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_secretsCreate",
+      "display_name": "Secrets Create",
+      "description": "Identity can create Secrets, enabling a service-account-token Secret to be planted so the token controller mints a token for any ServiceAccount in scope.",
       "is_traversable": true
     },
     {

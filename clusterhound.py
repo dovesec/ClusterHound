@@ -1072,13 +1072,13 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
     namespace; other edges for that same namespace suppressed, edges for other
     namespaces or cluster-wide permissions still emitted.
 
-    canCreate carries a `resource` property (e.g. "Pod", "Deployment") so
-    that multiple create permissions on the same namespace are merged into
+    canCreateWorkload carries a `resource` property (e.g. "Pod", "Deployment")
+    so that multiple create permissions on the same namespace are merged into
     one edge rather than silently deduplicated.
 
     Edges produced:
-    - canExec, canAttach, canPortForward, canPatch, canCreate, canCreateEphemeral
-    - secretsRead
+    - canExec, canAttach, canPortForward, canPatch, canCreateWorkload, canCreateEphemeral
+    - secretsRead, secretsCreate
     - canCreateToken
     - nodesProxyRCE
     - fullAccess
@@ -1230,20 +1230,25 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
                     for t in workload_patch_targets(wl_resource, wl_kind):
                         eb.add(identity_id, t, "CH_canPatch", {"resource": wl_kind})
 
-            # canCreate on pods — resource property distinguishes from workload create
+            # canCreateWorkload on pods — resource property distinguishes from workload create
             if match(r, "pods") and sub is None and match(v, "create"):
                 for t in pod_targets():
-                    eb.add(identity_id, t, "CH_canCreate", {"resource": "Pod"})
+                    eb.add(identity_id, t, "CH_canCreateWorkload", {"resource": "Pod"})
 
-            # canCreate on workload resource types → namespace/cluster with resource property
+            # canCreateWorkload on workload resource types → namespace/cluster with resource property
             for wl_resource, wl_kind in WORKLOAD_KINDS:
                 if match(r, wl_resource) and sub is None and match(v, "create"):
-                    eb.add(identity_id, target, "CH_canCreate", {"resource": wl_kind})
+                    eb.add(identity_id, target, "CH_canCreateWorkload", {"resource": wl_kind})
 
             # secretsRead
             if match(r, "secrets") and sub is None and (match(v, "get") or match(v, "list")):
                 for t in secret_targets():
                     eb.add(identity_id, t, "CH_secretsRead")
+
+            # secretsCreate: create on secrets → plant a service-account-token Secret
+            # to mint a token for any ServiceAccount in scope (validated assumption path)
+            if match(r, "secrets") and sub is None and match(v, "create"):
+                eb.add(identity_id, target, "CH_secretsCreate")
 
             # canCreateToken: create on serviceaccounts/token (TokenRequest API)
             if match(r, "serviceaccounts") and sub == "token" and match(v, "create"):

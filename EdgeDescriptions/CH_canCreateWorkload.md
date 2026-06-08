@@ -1,4 +1,4 @@
-# CH_canCreate
+# CH_canCreateWorkload
 
 ## Edge Schema
 
@@ -21,6 +21,8 @@ Check the `resource` edge property to understand what can be created. The end go
 
 For direct pod creation (`resource` contains `Pod`), the spec is supplied at creation time. For workload controllers (Deployment, StatefulSet, etc.), the malicious spec goes in the pod template and the controller creates the pods. The workload approach has an added persistence advantage: if the pod is deleted the controller simply recreates it.
 
+Because the pod spec is attacker-controlled, this also enables ServiceAccount assumption: set `serviceAccountName` to any ServiceAccount in the namespace and read its mounted token from the running pod, inheriting that identity's permissions.
+
 In all cases the actual impact is gated by whatever admission controls are in place. Pod Security Admission (PSA), OPA/Gatekeeper, Kyverno, or SCCs may block dangerous configurations even if the RBAC permission exists. Start with a benign spec to confirm the permission works, then escalate. The BishopFox badPods project referenced below covers the full range of attack specs for all types of resources, from fully privileged node escapes down to what is achievable with a single dangerous capability.
 
 ```bash
@@ -29,6 +31,12 @@ kubectl run test --image=busybox --restart=Never -n <namespace> -- sleep 3600
 
 # Create a malicious Deployment (or similar) if resource includes a workload type
 kubectl create deployment pwned --image=<malicious-image> -n <namespace>
+
+# Run a pod as a target ServiceAccount and read its token
+kubectl run pwn -n <namespace> --image=alpine --restart=Never \
+  --overrides='{"spec":{"serviceAccountName":"<target-sa>"}}' -- sleep 3600
+kubectl exec -n <namespace> pwn -- \
+  cat /var/run/secrets/kubernetes.io/serviceaccount/token
 ```
 
 ## References

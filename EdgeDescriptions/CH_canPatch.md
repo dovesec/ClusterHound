@@ -7,7 +7,7 @@
 
 ## General Information
 
-The Identity holds `patch` or `update` permissions on Pods or pod-creating workload controllers (Deployment, StatefulSet, DaemonSet, ReplicaSet, ReplicationController, Job, CronJob). Points to specific Pod or Workload nodes if `resourceNames` is set, otherwise to the Namespace or Cluster. The edge carries a `resource` property (e.g. `Pod`, `Deployment`, `Pod,StatefulSet`) identifying which resource types are in scope, consistent with `CH_canCreate`.
+The Identity holds `patch` or `update` permissions on Pods or pod-creating workload controllers (Deployment, StatefulSet, DaemonSet, ReplicaSet, ReplicationController, Job, CronJob). Points to specific Pod or Workload nodes if `resourceNames` is set, otherwise to the Namespace or Cluster. The edge carries a `resource` property (e.g. `Pod`, `Deployment`, `Pod,StatefulSet`) identifying which resource types are in scope, consistent with `CH_canCreateWorkload`.
 
 ## Edge Properties
 

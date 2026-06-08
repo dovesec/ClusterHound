@@ -66,7 +66,7 @@
     },
     {
       "name": "[ClusterHound] Shortest Paths from Pod to Critical Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreate|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Pods Reaching IMDS",
@@ -78,11 +78,11 @@
     },
     {
       "name": "[ClusterHound] Identities that Can Create Pods",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canCreate]->(t:CH) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canCreateWorkload]->(t:CH) WHERE e.resource CONTAINS 'Pod' RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Create Workloads",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canCreate]->(t:CH) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[e:CH_canCreateWorkload]->(t:CH) WHERE any(k IN ['Deployment','StatefulSet','DaemonSet','ReplicaSet','ReplicationController','Job','CronJob'] WHERE e.resource CONTAINS k) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Patch Pods",
@@ -97,6 +97,10 @@
       "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
+      "name": "[ClusterHound] Identities that Can Create Secrets",
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_secretsCreate]->(t:CH) RETURN p" }]
+    },
+    {
       "name": "[ClusterHound] Identities that Can Port Forward",
       "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canPortForward]->(t:CH) RETURN p" }]
     },
@@ -106,7 +110,7 @@
     },
     {
       "name": "[ClusterHound] Full Attack Chain - Entry Point to Critical Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreate|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Pods with Write Volume Mounts",
