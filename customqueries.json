@@ -127,6 +127,14 @@
     {
       "name": "[ClusterHound] Pods in Namespace via Service Accounts to All Permissions",
       "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod {namespace: 'namespace'})-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r]->(t:CH) RETURN p" }]
+    },
+    {
+      "name": "[ClusterHound] Token Creation Pivot to Privileged Identities",
+      "queryList": [{ "final": true, "query": "MATCH (attacker:CH_Identity)-[:CH_canCreateToken]->(ns:CH_Namespace) MATCH (sa:CH_Identity)-[r]->(t:CH) WHERE sa.namespace = toLower(ns.name) RETURN attacker, ns, sa, r, t" }]
+    },
+    {
+      "name": "[ClusterHound] Impersonation Pivot to Privileged Identities",
+      "queryList": [{ "final": true, "query": "MATCH (attacker:CH_Identity)-[:CH_canImpersonate]->(ns:CH_Namespace) MATCH (sa:CH_Identity)-[r]->(t:CH) WHERE sa.namespace = toLower(ns.name) RETURN attacker, ns, sa, r, t" }]
     }
   ]
 }
