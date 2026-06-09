@@ -66,7 +66,7 @@
     },
     {
       "name": "[ClusterHound] Shortest Paths from Pod to Critical Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_mountsServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Pods Reaching IMDS",
@@ -101,6 +101,14 @@
       "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_secretsCreate]->(t:CH) RETURN p" }]
     },
     {
+      "name": "[ClusterHound] Service Account Assumption Edges",
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canAssumeServiceAccount]->(sa:CH_Identity) WHERE n.namespace IS NULL OR n.namespace <> 'kube-system' RETURN p" }]
+    },
+    {
+      "name": "[ClusterHound] Entry Point to Critical Permissions via SA Assumption (up to 3 hops)",
+      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(:CH_Pod)-[:CH_mountsServiceAccount]->(:CH_Identity)-[:CH_canAssumeServiceAccount*1..3]->(sa:CH_Identity)-[:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_secretsRead|CH_secretsCreate|CH_canCreateToken|CH_canImpersonate]->(t:CH) RETURN p" }]
+    },
+    {
       "name": "[ClusterHound] Identities that Can Port Forward",
       "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canPortForward]->(t:CH) RETURN p" }]
     },
@@ -110,7 +118,7 @@
     },
     {
       "name": "[ClusterHound] Full Attack Chain - Entry Point to Critical Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod)-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod)-[:CH_mountsServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Pods with Write Volume Mounts",
@@ -130,7 +138,7 @@
     },
     {
       "name": "[ClusterHound] Pods in Namespace via Service Accounts to All Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod {namespace: 'namespace'})-[:CH_compromiseServiceAccount]->(i:CH_Identity)-[r]->(t:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod {namespace: 'namespace'})-[:CH_mountsServiceAccount]->(i:CH_Identity)-[r]->(t:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Token Creation Pivot to Privileged Identities",

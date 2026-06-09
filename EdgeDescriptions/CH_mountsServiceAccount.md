@@ -1,4 +1,4 @@
-# CH_compromiseServiceAccount
+# CH_mountsServiceAccount
 
 ## Edge Schema
 
@@ -7,7 +7,7 @@
 
 ## General Information
 
-The Pod mounts a ServiceAccount token, meaning compromise of any container in the Pod yields the ServiceAccount's credentials and all associated permissions.
+The Pod mounts the ServiceAccount's token, so control of any container in the Pod yields that ServiceAccount's credentials and all of its permissions. This is the structural foothold edge — distinct from [CH_canAssumeServiceAccount](CH_canAssumeServiceAccount.md), which is the RBAC-derived ability to *obtain* a ServiceAccount you do not already run as. Here the token is simply mounted in a pod you control.
 
 ## Abuse
 

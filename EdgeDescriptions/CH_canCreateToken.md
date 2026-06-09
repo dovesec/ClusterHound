@@ -11,7 +11,7 @@ The Identity holds `create` on the `serviceaccounts/token` subresource, allowing
 
 ## Abuse
 
-Request a token for any ServiceAccount in scope and use it to authenticate to the API server as that identity. The token duration is configurable at request time with `--duration` (default 1 hour); the upper limit is set by the API server's `--service-account-max-token-expiration` flag, which defaults to 1 hour but can be raised. This is a cleaner path than reading a secret-mounted token via `CH_compromiseServiceAccount`; it leaves less trace and works even when the target ServiceAccount has `automountServiceAccountToken` disabled, since the token is requested directly from the API server rather than read from a pod mount.
+Request a token for any ServiceAccount in scope and use it to authenticate to the API server as that identity. The token duration is configurable at request time with `--duration` (default 1 hour); the upper limit is set by the API server's `--service-account-max-token-expiration` flag, which defaults to 1 hour but can be raised. This is a cleaner path than reading a secret-mounted token via `CH_mountsServiceAccount`; it leaves less trace and works even when the target ServiceAccount has `automountServiceAccountToken` disabled, since the token is requested directly from the API server rather than read from a pod mount.
 
 ```bash
 # Request a token for a target ServiceAccount

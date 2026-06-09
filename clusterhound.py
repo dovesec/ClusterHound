@@ -821,17 +821,20 @@ def make_edge(start_id, end_id, kind, properties=None):
 
 class EdgeBuilder:
     """
-    Collects edges with deduplication and resource property merging.
+    Collects edges with deduplication and merging of multi-valued properties.
 
     When two adds share the same (start, end, kind) key:
-    - If the new call carries a `resource` property, its value is appended
-      to the existing edge's `resource` property (comma-separated, sorted).
+    - For each mergeable property (`resource`, `via`) the new value is appended
+      to the existing edge's value (comma-separated, sorted, de-duplicated).
     - Otherwise the duplicate is silently dropped.
 
-    This ensures that an identity with create/patch permissions on multiple
-    resource types produces a single edge with e.g. resource="Deployment,Pod"
-    rather than silently losing all but the first.
+    This ensures that, e.g., an identity with create permissions on multiple
+    resource types produces a single edge with resource="Deployment,Pod", and a
+    single canAssumeServiceAccount edge records every mechanism in `via` rather
+    than silently losing all but the first.
     """
+
+    MERGE_KEYS = ("resource", "via")
 
     def __init__(self):
         self._edges = {}  # key -> edge dict
@@ -840,18 +843,20 @@ class EdgeBuilder:
         key = (start_id, end_id, kind)
         if key not in self._edges:
             self._edges[key] = make_edge(start_id, end_id, kind, properties)
-        elif properties and "resource" in properties:
-            existing = self._edges[key]
-            existing_props = existing.setdefault("properties", {})
-            new_val = properties["resource"]
-            current = existing_props.get("resource", "")
-            if current:
-                parts = current.split(",")
-                if new_val not in parts:
-                    parts.append(new_val)
-                    existing_props["resource"] = ",".join(sorted(parts))
-            else:
-                existing_props["resource"] = new_val
+        elif properties:
+            existing_props = self._edges[key].setdefault("properties", {})
+            for mk in self.MERGE_KEYS:
+                if mk not in properties:
+                    continue
+                new_val = properties[mk]
+                current = existing_props.get(mk, "")
+                if current:
+                    parts = current.split(",")
+                    if new_val not in parts:
+                        parts.append(new_val)
+                        existing_props[mk] = ",".join(sorted(parts))
+                else:
+                    existing_props[mk] = new_val
 
     def edges(self):
         return list(self._edges.values())
@@ -865,7 +870,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
     - podHostPID:             Pod → Node
     - podHostNetwork:         Pod → Node
     - podHostIPC:             Pod → Node
-    - compromiseServiceAccount: Pod → Identity
+    - mountsServiceAccount: Pod → Identity
     - hasReadVolume:          Pod → Volume
     - hasWriteVolume:         Pod → Volume
     - bindsRole:              RoleBinding/ClusterRoleBinding → Role/ClusterRole
@@ -925,7 +930,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
                            {"Container name": container["name"]})
                     break  # one edge per pod is sufficient
 
-        # --- compromiseServiceAccount: Pod → Identity ---
+        # --- mountsServiceAccount: Pod → Identity ---
         sa_name = spec.get("serviceAccountName") or "default"
         sa_id = nid(ns, "serviceaccount", sa_name)
         automount = spec.get("automountServiceAccountToken", True)
@@ -941,7 +946,7 @@ def build_structural_edges(pods, services, rolebindings, clusterrolebindings, ro
                     break
 
         if token_mounted:
-            eb.add(pod_id, sa_id, "CH_compromiseServiceAccount")
+            eb.add(pod_id, sa_id, "CH_mountsServiceAccount")
 
         all_containers = (
             spec.get("containers", [])
@@ -1084,6 +1089,7 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
     - fullAccess
     - canBind, canEscalate
     - canImpersonate
+    - canAssumeServiceAccount (derived Identity→Identity SA-assumption pivots, with `via`)
     """
     eb = EdgeBuilder()
     workloads = workloads or {}
@@ -1096,6 +1102,16 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
         for rt, _ in WORKLOAD_KINDS
     }
     cluster_id = "cluster/cluster/default"
+
+    # Map of namespace -> set of SA names that already have a populated
+    # kubernetes.io/service-account-token Secret (enables tokenSecretRead).
+    token_secret_sas = {}
+    for s in secrets:
+        if s.get("type") == "kubernetes.io/service-account-token":
+            ann = (s.get("metadata", {}).get("annotations") or {})
+            sa_name = ann.get("kubernetes.io/service-account.name")
+            if sa_name:
+                token_secret_sas.setdefault(s["metadata"]["namespace"], set()).add(sa_name)
 
     def match(actual, target):
         return actual == "*" or actual == target
@@ -1132,6 +1148,22 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
             ]
         return [target]
 
+    def emit_assume(identity_id, namespace, via, only_names=None):
+        """Emit CH_canAssumeServiceAccount to each assumable SA in scope.
+
+        namespace=None means cluster-wide (every SA); a string scopes to SAs in
+        that namespace. only_names restricts to specific SA names (used when a
+        canCreateToken/canImpersonate rule names ServiceAccounts via resourceNames).
+        Self-edges are skipped.
+        """
+        for sa_ns, sa_name in scoped_sas(namespace):
+            if only_names is not None and sa_name not in only_names:
+                continue
+            sa_id = nid(sa_ns, "serviceaccount", sa_name)
+            if sa_id == identity_id:
+                continue
+            eb.add(identity_id, sa_id, "CH_canAssumeServiceAccount", {"via": via})
+
     # Pre-scan: detect cluster-wide and namespace-scoped */* permissions separately.
     # Cluster-wide */* → single fullAccess edge to the cluster; all other edges
     # are suppressed since they are already implied.
@@ -1156,6 +1188,9 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
         if identity_id not in cluster_full_access:
             for ns in namespaces:
                 eb.add(identity_id, nid(None, "namespace", ns), "CH_fullAccess")
+                # namespace-scoped wildcard → can assume any SA in that namespace
+                # (one of those SAs may itself hold cluster-wide permissions)
+                emit_assume(identity_id, ns, "fullAccess")
 
     for identity_id, perms in identity_perms.items():
         if identity_id in cluster_full_access:
@@ -1229,16 +1264,25 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
                 if match(r, wl_resource) and sub is None and (match(v, "patch") or match(v, "update")):
                     for t in workload_patch_targets(wl_resource, wl_kind):
                         eb.add(identity_id, t, "CH_canPatch", {"resource": wl_kind})
+                    # patching a mutable pod template can repoint serviceAccountName → assume any SA.
+                    # Excludes Job (spec.template immutable after creation); Pod patch is excluded
+                    # entirely above (serviceAccountName immutable on a running pod).
+                    if wl_kind != "Job":
+                        emit_assume(identity_id, ns, "patchWorkload")
 
             # canCreateWorkload on pods — resource property distinguishes from workload create
             if match(r, "pods") and sub is None and match(v, "create"):
                 for t in pod_targets():
                     eb.add(identity_id, t, "CH_canCreateWorkload", {"resource": "Pod"})
+                # create a pod with a chosen serviceAccountName → assume any SA in scope
+                emit_assume(identity_id, ns, "createWorkload")
 
             # canCreateWorkload on workload resource types → namespace/cluster with resource property
             for wl_resource, wl_kind in WORKLOAD_KINDS:
                 if match(r, wl_resource) and sub is None and match(v, "create"):
                     eb.add(identity_id, target, "CH_canCreateWorkload", {"resource": wl_kind})
+                    # a workload's pod template can set serviceAccountName → assume any SA
+                    emit_assume(identity_id, ns, "createWorkload")
 
             # secretsRead
             if match(r, "secrets") and sub is None and (match(v, "get") or match(v, "list")):
@@ -1254,6 +1298,8 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
             if match(r, "serviceaccounts") and sub == "token" and match(v, "create"):
                 for t in sa_targets():
                     eb.add(identity_id, t, "CH_canCreateToken")
+                # minting a token for an SA is assuming it (specific SAs if resourceNames set)
+                emit_assume(identity_id, ns, "createToken", set(rnames) if rnames else None)
 
             # nodesProxyRCE → single cluster edge
             if match(r, "nodes") and sub == "proxy" and match(v, "get"):
@@ -1274,8 +1320,43 @@ def build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads=N
             # canImpersonate → namespace/cluster with resource type as context
             if match(v, "impersonate") and match(r, "serviceaccounts"):
                 eb.add(identity_id, target, "CH_canImpersonate", {"resource": "serviceaccounts"})
+                # impersonating an SA is assuming it (specific SAs if resourceNames set)
+                emit_assume(identity_id, ns, "impersonate", set(rnames) if rnames else None)
             if match(v, "impersonate") and (match(r, "users") or match(r, "groups")):
                 eb.add(identity_id, cluster_id, "CH_canImpersonate", {"resource": r})
+
+    # canAssumeServiceAccount via Secrets:
+    #   tokenSecretPlant — create + read on secrets in a scope lets you plant a
+    #     service-account-token Secret for any SA and read the minted token.
+    #   tokenSecretRead  — read on secrets where a token Secret already exists for
+    #     an SA lets you read that SA's token directly.
+    secret_read_scopes = {}
+    secret_create_scopes = {}
+    for identity_id, perms in identity_perms.items():
+        if identity_id in cluster_full_access:
+            continue
+        for p in perms:
+            if p["resource"] in ("secrets", "*") and p.get("subresource") is None:
+                if p["verb"] in ("get", "list", "*"):
+                    secret_read_scopes.setdefault(identity_id, set()).add(p["namespace"])
+                if p["verb"] in ("create", "*"):
+                    secret_create_scopes.setdefault(identity_id, set()).add(p["namespace"])
+
+    def in_scope(scopes, namespace):
+        # None in the scope set means cluster-wide (covers every namespace)
+        return scopes is not None and (None in scopes or namespace in scopes)
+
+    for identity_id in set(secret_read_scopes) | set(secret_create_scopes):
+        read = secret_read_scopes.get(identity_id)
+        create = secret_create_scopes.get(identity_id)
+        for sa_ns, sa_name in all_sas:
+            sa_id = nid(sa_ns, "serviceaccount", sa_name)
+            if sa_id == identity_id:
+                continue
+            if in_scope(create, sa_ns) and in_scope(read, sa_ns):
+                eb.add(identity_id, sa_id, "CH_canAssumeServiceAccount", {"via": "tokenSecretPlant"})
+            elif in_scope(read, sa_ns) and sa_name in token_secret_sas.get(sa_ns, set()):
+                eb.add(identity_id, sa_id, "CH_canAssumeServiceAccount", {"via": "tokenSecretRead"})
 
     return eb
 

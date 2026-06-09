@@ -249,8 +249,14 @@
       "is_traversable": true
     },
     {
-      "name": "CH_compromiseServiceAccount",
-      "display_name": "Compromise Service Account",
+      "name": "CH_canAssumeServiceAccount",
+      "display_name": "Can Assume Service Account",
+      "description": "Identity can authenticate as the target ServiceAccount through a namespace- or cluster-scoped capability (workload creation, mutable workload patch, token request, impersonation, or token-Secret plant/read). Derived edge that collapses these mechanisms into one traversable Identity-to-Identity hop so multi-hop assumption chains are discoverable; the via property records the mechanism(s).",
+      "is_traversable": true
+    },
+    {
+      "name": "CH_mountsServiceAccount",
+      "display_name": "Mounts Service Account",
       "description": "Pod mounts a ServiceAccount token, allowing an attacker who controls the pod to use that identity.",
       "is_traversable": true
     },
