@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.svg" alt="ClusterHound" width="520"/>
+  <img src="logo.jpg" alt="ClusterHound" width="520"/>
 </p>
 
 <p align="center">
