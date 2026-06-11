@@ -8,18 +8,81 @@ for ingestion into BloodHound CE.
 import argparse
 import json
 import logging
+import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
+
+
+__version__ = "1.0.0"
+
+
+# ============================================================
+# Console presentation
+# ============================================================
+
+class C:
+    """ANSI colour codes, auto-disabled when not writing to a terminal."""
+    enabled = sys.stderr.isatty() and os.environ.get("NO_COLOR") is None
+
+    @classmethod
+    def wrap(cls, code, text):
+        return f"\033[{code}m{text}\033[0m" if cls.enabled else text
+
+    @classmethod
+    def pink(cls, t):   return cls.wrap("38;5;205", t)
+    @classmethod
+    def cyan(cls, t):   return cls.wrap("38;5;51", t)
+    @classmethod
+    def dim(cls, t):    return cls.wrap("2", t)
+    @classmethod
+    def bold(cls, t):   return cls.wrap("1", t)
+
+
+def print_banner():
+    """Print the ClusterHound startup header to stderr."""
+    header = (
+        C.bold(C.pink("ClusterHound")) + " " + C.dim("v" + __version__)
+        + "  " + C.cyan("Kubernetes attack paths for BloodHound CE")
+    )
+    print(header, file=sys.stderr)
+
+
+def hr(label=None):
+    """Render a section divider, optionally with a label.
+
+    ASCII-only so it renders cleanly on Windows consoles (PowerShell/conhost),
+    which do not reliably encode box-drawing characters.
+    """
+    if label:
+        return C.dim("== ") + C.bold(label) + C.dim(" " + "=" * max(2, 48 - len(label)))
+    return C.dim("=" * 52)
 
 
 # ============================================================
 # kubectl helpers
 # ============================================================
 
+# Base kubectl invocation, populated by set_kubectl_base() from CLI args.
+# Lets --kubeconfig / --context flow through to every kubectl call.
+KUBECTL_BASE = ["kubectl"]
+
+
+def set_kubectl_base(kubeconfig=None, context=None):
+    """Build the base kubectl command with optional kubeconfig and context."""
+    global KUBECTL_BASE
+    base = ["kubectl"]
+    if kubeconfig:
+        base += ["--kubeconfig", kubeconfig]
+    if context:
+        base += ["--context", context]
+    KUBECTL_BASE = base
+
+
 def kubectl_json(*args):
     """Run a kubectl command with -o json and return parsed output."""
-    cmd = ["kubectl"] + list(args) + ["-o", "json"]
+    cmd = KUBECTL_BASE + list(args) + ["-o", "json"]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=True)
         return json.loads(result.stdout)
@@ -33,7 +96,7 @@ def kubectl_json(*args):
 
 def kubectl_raw(*args):
     """Run a kubectl command and return raw stdout text."""
-    cmd = ["kubectl"] + list(args)
+    cmd = KUBECTL_BASE + list(args)
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=True)
         return result.stdout.strip()
@@ -135,11 +198,11 @@ def collect_all(namespaces=None):
     cluster-wide collection. When multiple namespaces are provided, results are
     merged across all of them.
     """
-    logging.info("Starting cluster data collection...")
+    logging.info(hr("Collecting cluster data"))
     if namespaces:
-        logging.info(f"  Scope: namespaces {namespaces}")
+        logging.info(f"Namespace scope: {C.bold(', '.join(namespaces))}")
     else:
-        logging.info("  Scope: cluster-wide")
+        logging.info(f"Scope: {C.bold('cluster-wide')}")
 
     namespaced = [
         "pods", "services", "secrets", "serviceaccounts",
@@ -151,22 +214,41 @@ def collect_all(namespaces=None):
         "nodes", "clusterroles", "clusterrolebindings", "persistentvolumes",
     ]
 
+    # Ordered fetch plan so we can show [n/total] progress. On a large or
+    # remote cluster a single kubectl call can take many seconds; the live
+    # status line reassures the user the tool has not frozen.
+    plan = [(r, False) for r in namespaced] + [(r, True) for r in cluster_scoped]
+    total = len(plan)
+    interactive = sys.stderr.isatty()
+
     data = {}
-    for resource in namespaced:
-        logging.info(f"  Collecting {resource}...")
-        if namespaces:
+    for i, (resource, cluster) in enumerate(plan, 1):
+        prefix = C.dim(f"[{i:>2}/{total}]")
+
+        # Transient "fetching" line, shown before the (potentially slow) call.
+        if interactive:
+            sys.stderr.write(f"\r  {prefix} fetching {resource}...")
+            sys.stderr.flush()
+
+        if cluster:
+            data[resource] = get_items(resource, cluster_scoped=True)
+        elif namespaces:
             items = []
             for ns in namespaces:
                 items += get_items(resource, cluster_scoped=False, namespace=ns)
             data[resource] = items
         else:
             data[resource] = get_items(resource, cluster_scoped=False, namespace=None)
-        logging.debug(f"    -> {len(data[resource])} items")
 
-    for resource in cluster_scoped:
-        logging.info(f"  Collecting {resource}...")
-        data[resource] = get_items(resource, cluster_scoped=True)
-        logging.debug(f"    -> {len(data[resource])} items")
+        count = len(data[resource])
+        bullet = C.cyan("*") if count else C.dim("*")
+        line = f"  {prefix} {bullet} {resource:<24}{C.bold(str(count))}"
+        if interactive:
+            # Clear the transient line, then commit the final count.
+            sys.stderr.write("\r" + " " * 70 + "\r" + line + "\n")
+            sys.stderr.flush()
+        else:
+            logging.info(line)
 
     return data
 
@@ -1387,6 +1469,19 @@ def main():
              "Comma-separate multiple namespaces: -n default,kube-system. "
              "Node nodes are synthesized from pod specs when the nodes API is inaccessible.",
     )
+    parser.add_argument(
+        "--kubeconfig",
+        default=None,
+        metavar="PATH",
+        help="Path to the kubeconfig file to use "
+             "(default: $KUBECONFIG or ~/.kube/config).",
+    )
+    parser.add_argument(
+        "--context",
+        default=None,
+        metavar="NAME",
+        help="Kubeconfig context to collect from (default: the current-context).",
+    )
 
     parser.add_argument(
         "-v", "--verbose",
@@ -1395,20 +1490,52 @@ def main():
     )
     args = parser.parse_args()
 
+    start_time = time.monotonic()
+
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
-        format="[%(levelname)s] %(message)s",
+        format="%(message)s",
     )
 
-    # Verify kubectl is available and reachable
-    context_name = kubectl_raw("config", "current-context")
-    if not context_name:
-        logging.error("kubectl is not available or no current context is set.")
-        sys.exit(1)
-    logging.info(f"Target context: {context_name}")
+    print_banner()
+
+    # Route every kubectl call through the chosen kubeconfig/context
+    set_kubectl_base(kubeconfig=args.kubeconfig, context=args.context)
+
+    # Resolve the target context. An explicit --context wins; otherwise fall
+    # back to whatever the kubeconfig marks as current-context.
+    if args.context:
+        # Validate the named context exists so a typo fails fast rather than
+        # silently collecting an empty graph from a non-existent context.
+        available = kubectl_raw("config", "get-contexts", "-o", "name")
+        if available is None:
+            logging.error(
+                "kubectl is not available. Check it is installed and on PATH"
+                + (f", and that --kubeconfig points to a valid file." if args.kubeconfig else ".")
+            )
+            sys.exit(1)
+        contexts = available.splitlines()
+        if args.context not in contexts:
+            logging.error(f"Context '{args.context}' not found in kubeconfig.")
+            if contexts:
+                logging.error("Available contexts: " + ", ".join(contexts))
+            sys.exit(1)
+        context_name = args.context
+    else:
+        context_name = kubectl_raw("config", "current-context")
+        if not context_name:
+            logging.error(
+                "kubectl is not available, or no context could be resolved. "
+                "Check --kubeconfig / --context, or set a current-context."
+            )
+            sys.exit(1)
+
+    if args.kubeconfig:
+        logging.info(f"kubeconfig:     {C.bold(args.kubeconfig)}")
+    logging.info(f"Target context: {C.bold(context_name)}")
     cluster_name = sanitise_cluster_name(context_name)
     if cluster_name != context_name:
-        logging.info(f"Cluster name:   {cluster_name}")
+        logging.info(f"Cluster name:   {C.bold(cluster_name)}")
 
     # ── Collect ──────────────────────────────────────────────
     namespaces = [ns.strip() for ns in args.namespace.split(",")] if args.namespace else None
@@ -1428,7 +1555,7 @@ def main():
     workloads           = {rt: data.get(rt, []) for rt, _ in WORKLOAD_KINDS}
 
     # ── Build nodes ───────────────────────────────────────────
-    logging.info("Building graph nodes...")
+    logging.info(hr("Building graph"))
 
     imds_nodes = build_imds_nodes(nodes_k8s)
 
@@ -1448,17 +1575,14 @@ def main():
         + build_binding_nodes(rolebindings, clusterrolebindings)
         + imds_nodes
     )
-    logging.info(f"Built {len(graph_nodes)} nodes")
+    logging.info(f"  {C.cyan('*')} nodes      {C.bold(str(len(graph_nodes)))}")
 
     # ── Resolve RBAC ──────────────────────────────────────────
-    logging.info("Resolving RBAC...")
     resolver = RBACResolver(roles, clusterroles, rolebindings, clusterrolebindings)
     identity_perms = resolver.resolve()
-    logging.info(f"Resolved permissions for {len(identity_perms)} identities")
+    logging.info(f"  {C.cyan('*')} identities {C.bold(str(len(identity_perms)))}")
 
     # ── Build edges ───────────────────────────────────────────
-    logging.info("Building graph edges...")
-
     structural_eb = build_structural_edges(
         pods, services, rolebindings, clusterrolebindings, roles, clusterroles
     )
@@ -1472,7 +1596,7 @@ def main():
         + imds_eb.edges()
         + rbac_eb.edges()
     )
-    logging.info(f"Built {len(graph_edges)} edges")
+    logging.info(f"  {C.cyan('*')} edges      {C.bold(str(len(graph_edges)))}")
 
     # ── Normalise node properties ──────────────────────────────
     # Note: objectid and displayname must NOT be set inside the properties
@@ -1507,9 +1631,13 @@ def main():
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, default=str)
 
-    logging.info(f"Output written to: {args.output}")
+    elapsed = time.monotonic() - start_time
+    logging.info(hr("Done"))
     logging.info(
-        f"Summary: {len(graph_nodes)} nodes | {len(graph_edges)} edges"
+        f"{C.bold(C.pink(str(len(graph_nodes))))} nodes  "
+        f"{C.dim('|')}  {C.bold(C.pink(str(len(graph_edges))))} edges  "
+        f"{C.dim('|')}  {C.bold(f'{elapsed:.1f}s')}  "
+        f"{C.dim('->')}  {C.bold(args.output)}"
     )
 
 
