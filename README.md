@@ -101,6 +101,10 @@ ClusterHound's traversable edges are emitted as a [structured graph](https://blo
 
 ClusterHound is under active development. A small number of edges (`unauthAPIAccess`, `unauthKubeletAccess`, `accessIMDS`) are flagged for manual verification and are mostly superficial - they mark a *potential* path that live network/anonymous-auth checks do not yet confirm. This functionality will be expanded in due course.
 
+## Authors
+
+Built and maintained by [dovesec](https://github.com/dovesec) and [Th3MuffinM4n](https://github.com/Th3MuffinM4n). Bug reports, feature requests, and new edge ideas are welcome - please [open an issue](https://github.com/dovesec/ClusterHound/issues).
+
 ## Disclaimer
 
 ClusterHound is intended for authorised security assessment, research, and defensive use only. Run it only against clusters you own or have explicit permission to test. You are responsible for how you use it, and the authors accept no liability for any misuse or damage. Provided as-is, without warranty of any kind.
