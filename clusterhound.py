@@ -11,6 +11,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -58,6 +59,51 @@ def hr(label=None):
     if label:
         return C.dim("== ") + C.bold(label) + C.dim(" " + "=" * max(2, 48 - len(label)))
     return C.dim("=" * 52)
+
+
+class Spinner:
+    """Elapsed-time spinner for a long blocking step.
+
+    Used as a context manager. A background thread animates a spinner with a
+    live seconds counter so the user can see the tool is still working even
+    while a single kubectl call or build stage takes a while. Active only on an
+    interactive TTY; otherwise it is a no-op (the caller still logs its result
+    line afterwards). The spinner thread is joined before the caller logs, so
+    the two never write to stderr at the same time.
+    """
+
+    FRAMES = "|/-\\"
+
+    def __init__(self, label):
+        self.label = label
+        self.enabled = sys.stderr.isatty()
+        self._stop = threading.Event()
+        self._thread = None
+
+    def __enter__(self):
+        if self.enabled:
+            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread.start()
+        return self
+
+    def _run(self):
+        start = time.monotonic()
+        i = 0
+        while not self._stop.is_set():
+            frame = self.FRAMES[i % len(self.FRAMES)]
+            elapsed = time.monotonic() - start
+            sys.stderr.write(f"\r  {C.cyan(frame)} {self.label} {C.dim(f'({elapsed:.0f}s)')}   ")
+            sys.stderr.flush()
+            i += 1
+            self._stop.wait(0.12)
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        if self._thread:
+            self._thread.join()
+        if self.enabled:
+            sys.stderr.write("\r" + " " * 72 + "\r")
+            sys.stderr.flush()
 
 
 # ============================================================
@@ -214,41 +260,27 @@ def collect_all(namespaces=None):
         "nodes", "clusterroles", "clusterrolebindings", "persistentvolumes",
     ]
 
-    # Ordered fetch plan so we can show [n/total] progress. On a large or
-    # remote cluster a single kubectl call can take many seconds; the live
-    # status line reassures the user the tool has not frozen.
+    # Each resource is fetched under a spinner so a slow kubectl call on a
+    # large or remote cluster shows a live elapsed counter rather than looking
+    # frozen. The committed count line is logged once the fetch completes.
     plan = [(r, False) for r in namespaced] + [(r, True) for r in cluster_scoped]
-    total = len(plan)
-    interactive = sys.stderr.isatty()
 
     data = {}
-    for i, (resource, cluster) in enumerate(plan, 1):
-        prefix = C.dim(f"[{i:>2}/{total}]")
-
-        # Transient "fetching" line, shown before the (potentially slow) call.
-        if interactive:
-            sys.stderr.write(f"\r  {prefix} fetching {resource}...")
-            sys.stderr.flush()
-
-        if cluster:
-            data[resource] = get_items(resource, cluster_scoped=True)
-        elif namespaces:
-            items = []
-            for ns in namespaces:
-                items += get_items(resource, cluster_scoped=False, namespace=ns)
-            data[resource] = items
-        else:
-            data[resource] = get_items(resource, cluster_scoped=False, namespace=None)
+    for resource, cluster in plan:
+        with Spinner(f"fetching {resource}"):
+            if cluster:
+                data[resource] = get_items(resource, cluster_scoped=True)
+            elif namespaces:
+                items = []
+                for ns in namespaces:
+                    items += get_items(resource, cluster_scoped=False, namespace=ns)
+                data[resource] = items
+            else:
+                data[resource] = get_items(resource, cluster_scoped=False, namespace=None)
 
         count = len(data[resource])
         bullet = C.cyan("*") if count else C.dim("*")
-        line = f"  {prefix} {bullet} {resource:<24}{C.bold(str(count))}"
-        if interactive:
-            # Clear the transient line, then commit the final count.
-            sys.stderr.write("\r" + " " * 70 + "\r" + line + "\n")
-            sys.stderr.flush()
-        else:
-            logging.info(line)
+        logging.info(f"  {bullet} {resource:<24}{C.bold(str(count))}")
 
     return data
 
@@ -1559,43 +1591,46 @@ def main():
 
     imds_nodes = build_imds_nodes(nodes_k8s)
 
-    graph_nodes = (
-        build_cluster_node(cluster_name)
-        + build_external_actor_node()
-        + build_node_nodes(pods, nodes_k8s)
-        + build_namespace_nodes(pods, services, secrets, serviceaccounts, workloads)
-        + build_pod_nodes(pods)
-        + build_service_nodes(services)
-        + build_secret_nodes(secrets)
-        + build_identity_nodes(serviceaccounts)
-        + build_user_group_nodes(rolebindings, clusterrolebindings)
-        + build_volume_nodes(pods, pvcs, pvs)
-        + build_workload_nodes(workloads)
-        + build_role_nodes(roles, clusterroles)
-        + build_binding_nodes(rolebindings, clusterrolebindings)
-        + imds_nodes
-    )
+    with Spinner("building nodes"):
+        graph_nodes = (
+            build_cluster_node(cluster_name)
+            + build_external_actor_node()
+            + build_node_nodes(pods, nodes_k8s)
+            + build_namespace_nodes(pods, services, secrets, serviceaccounts, workloads)
+            + build_pod_nodes(pods)
+            + build_service_nodes(services)
+            + build_secret_nodes(secrets)
+            + build_identity_nodes(serviceaccounts)
+            + build_user_group_nodes(rolebindings, clusterrolebindings)
+            + build_volume_nodes(pods, pvcs, pvs)
+            + build_workload_nodes(workloads)
+            + build_role_nodes(roles, clusterroles)
+            + build_binding_nodes(rolebindings, clusterrolebindings)
+            + imds_nodes
+        )
     logging.info(f"  {C.cyan('*')} nodes      {C.bold(str(len(graph_nodes)))}")
 
     # ── Resolve RBAC ──────────────────────────────────────────
-    resolver = RBACResolver(roles, clusterroles, rolebindings, clusterrolebindings)
-    identity_perms = resolver.resolve()
+    with Spinner("resolving RBAC"):
+        resolver = RBACResolver(roles, clusterroles, rolebindings, clusterrolebindings)
+        identity_perms = resolver.resolve()
     logging.info(f"  {C.cyan('*')} identities {C.bold(str(len(identity_perms)))}")
 
     # ── Build edges ───────────────────────────────────────────
-    structural_eb = build_structural_edges(
-        pods, services, rolebindings, clusterrolebindings, roles, clusterroles
-    )
-    unauth_eb = build_unauth_edges(nodes_k8s)
-    imds_eb = build_imds_edges(pods, imds_nodes)
-    rbac_eb = build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads)
+    with Spinner("building edges"):
+        structural_eb = build_structural_edges(
+            pods, services, rolebindings, clusterrolebindings, roles, clusterroles
+        )
+        unauth_eb = build_unauth_edges(nodes_k8s)
+        imds_eb = build_imds_edges(pods, imds_nodes)
+        rbac_eb = build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads)
 
-    graph_edges = (
-        structural_eb.edges()
-        + unauth_eb.edges()
-        + imds_eb.edges()
-        + rbac_eb.edges()
-    )
+        graph_edges = (
+            structural_eb.edges()
+            + unauth_eb.edges()
+            + imds_eb.edges()
+            + rbac_eb.edges()
+        )
     logging.info(f"  {C.cyan('*')} edges      {C.bold(str(len(graph_edges)))}")
 
     # ── Normalise node properties ──────────────────────────────
