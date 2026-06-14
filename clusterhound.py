@@ -861,7 +861,14 @@ def build_binding_nodes(rolebindings, clusterrolebindings):
 
 
 def build_imds_nodes(nodes_data):
-    """Detect the cloud provider from node metadata and add an IMDS service node."""
+    """Detect the cloud provider from node metadata and add a single IMDS node.
+
+    This is an informational origin node only - it records that a cloud
+    instance metadata endpoint exists for the cluster. Per-pod reachability
+    (the CH_accessIMDS edge) is not mapped, since reachability depends on
+    network policy and IMDSv2 hop-limit enforcement that ClusterHound does not
+    yet verify; mapping it from every pod was noise.
+    """
     for node in nodes_data:
         labels = node.get("metadata", {}).get("labels", {})
         provider_id = node.get("spec", {}).get("providerID", "")
@@ -876,8 +883,9 @@ def build_imds_nodes(nodes_data):
                     "provider": "AWS",
                     "endpoint": "http://169.254.169.254",
                     "description": (
-                        "AWS Instance Metadata Service - reachable from any Pod. "
-                        "Without IMDSv2 enforcement, credentials are obtainable via simple HTTP GET."
+                        "AWS Instance Metadata Service. Reachable from Pods that are "
+                        "not blocked by network policy; without IMDSv2 enforcement, "
+                        "credentials are obtainable via simple HTTP GET."
                     ),
                 }
             }]
@@ -890,8 +898,8 @@ def build_imds_nodes(nodes_data):
                     "provider": "Azure",
                     "endpoint": "http://169.254.169.254",
                     "description": (
-                        "Azure Instance Metadata Service - reachable from any Pod. "
-                        "Can be used to obtain managed identity tokens."
+                        "Azure Instance Metadata Service. Can be used to obtain "
+                        "managed identity tokens."
                     ),
                 }
             }]
@@ -904,8 +912,8 @@ def build_imds_nodes(nodes_data):
                     "provider": "GCP",
                     "endpoint": "http://metadata.google.internal",
                     "description": (
-                        "GCP Metadata Server - reachable from any Pod. "
-                        "Can be used to obtain service account tokens and instance metadata."
+                        "GCP Metadata Server. Can be used to obtain service account "
+                        "tokens and instance metadata."
                     ),
                 }
             }]
@@ -1160,35 +1168,20 @@ def build_unauth_edges(nodes_data):
     return eb
 
 
-def build_imds_edges(pods, imds_nodes):
-    """
-    Build accessIMDS edges: Container → IMDSService.
+def build_imds_edges(node_ids, imds_nodes):
+    """Build accessIMDS edges: Node -> IMDSService (one per Kubernetes node).
 
-    Every container in the cluster can reach the cloud IMDS endpoint by
-    default since 169.254.169.254 is a link-local address accessible from
-    all Pods unless explicitly blocked. Edges are marked verified=false
-    until network policy checks and IMDSv2 hop-limit detection are added.
+    The instance metadata endpoint is reachable from the node itself, so the
+    edge originates from the Node rather than fanning out from every Pod.
+    Per-pod reachability (network policy, IMDSv2 hop-limit) is not verified,
+    so the edge is modelled at the node level.
     """
     eb = EdgeBuilder()
-
     if not imds_nodes:
         return eb
-
     imds_id = imds_nodes[0]["id"]
-    imds_props = {
-        "verified": False,
-        "note": (
-            "Network policy blocking and IMDSv2 hop-limit enforcement "
-            "are not yet checked - treat as potential path"
-        ),
-    }
-
-    for pod in pods:
-        meta = pod["metadata"]
-        ns = meta["namespace"]
-        pod_name = meta["name"]
-        eb.add(nid(ns, "pod", pod_name), imds_id, "CH_accessIMDS", imds_props)
-
+    for node_id in node_ids:
+        eb.add(node_id, imds_id, "CH_accessIMDS")
     return eb
 
 
@@ -1639,7 +1632,8 @@ def main():
             pods, services, rolebindings, clusterrolebindings, roles, clusterroles
         )
         unauth_eb = build_unauth_edges(nodes_k8s)
-        imds_eb = build_imds_edges(pods, imds_nodes)
+        node_ids = [n["id"] for n in graph_nodes if "CH_Node" in n["kinds"]]
+        imds_eb = build_imds_edges(node_ids, imds_nodes)
         rbac_eb = build_rbac_edges(identity_perms, pods, secrets, serviceaccounts, workloads)
 
         graph_edges = (
