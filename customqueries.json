@@ -10,11 +10,11 @@
     },
     {
       "name": "[ClusterHound] All Edges from a Specific Object",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:CH {objectid: 'NAMESPACE/KIND/NAME'})-[r]->(m:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH)-[r]->(m:CH) WHERE toUpper(n.objectid) = toUpper('NAMESPACE/KIND/NAME') RETURN p" }]
     },
     {
       "name": "[ClusterHound] Specific Edge from a Specific Object",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:CH {objectid: 'NAMESPACE/KIND/NAME'})-[:CH_canExec]->(m:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH)-[:CH_canExec]->(m:CH) WHERE toUpper(n.objectid) = toUpper('NAMESPACE/KIND/NAME') RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities with Full Cluster Access",
@@ -27,10 +27,6 @@
     {
       "name": "[ClusterHound] Nodes Proxy RCE",
       "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_nodesProxyRCE]->(c:CH_Cluster) RETURN p" }]
-    },
-    {
-      "name": "[ClusterHound] Unauthenticated API and Kubelet Access",
-      "queryList": [{ "final": true, "query": "MATCH p=(e:CH_ExternalActor)-[r:CH_unauthAPIAccess|CH_unauthKubeletAccess]->(n:CH) RETURN p" }]
     },
     {
       "name": "[ClusterHound] Shortest Path from Identity to Full Cluster Compromise",
@@ -69,10 +65,6 @@
       "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_mountsServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
-      "name": "[ClusterHound] Pods Reaching IMDS",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod)-[:CH_accessIMDS]->(imds:CH_IMDSService) RETURN p" }]
-    },
-    {
       "name": "[ClusterHound] Identities that Can Exec into Pods",
       "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canExec]->(t:CH) RETURN p" }]
     },
@@ -102,11 +94,7 @@
     },
     {
       "name": "[ClusterHound] Service Account Assumption Edges",
-      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canAssumeServiceAccount]->(sa:CH_Identity) WHERE n.namespace IS NULL OR n.namespace <> 'kube-system' RETURN p" }]
-    },
-    {
-      "name": "[ClusterHound] Entry Point to Critical Permissions via SA Assumption (up to 3 hops)",
-      "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(:CH_Pod)-[:CH_mountsServiceAccount]->(:CH_Identity)-[:CH_canAssumeServiceAccount*1..3]->(sa:CH_Identity)-[:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_secretsRead|CH_secretsCreate|CH_canCreateToken|CH_canImpersonate]->(t:CH) RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(n:CH_Identity)-[:CH_canAssumeServiceAccount]->(sa:CH_Identity) WHERE n.namespace IS NULL OR toLower(n.namespace) <> 'kube-system' RETURN p" }]
     },
     {
       "name": "[ClusterHound] Identities that Can Port Forward",
@@ -117,7 +105,7 @@
       "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod) RETURN p" }]
     },
     {
-      "name": "[ClusterHound] Full Attack Chain - Entry Point to Critical Permissions",
+      "name": "[ClusterHound] Entry Point to Critical Permissions",
       "queryList": [{ "final": true, "query": "MATCH p=(svc:CH_Service)-[:CH_entryPoint]->(pod:CH_Pod)-[:CH_mountsServiceAccount]->(i:CH_Identity)-[r:CH_fullAccess|CH_nodesProxyRCE|CH_canBind|CH_canEscalate|CH_canExec|CH_canCreateWorkload|CH_canPatch|CH_canCreateEphemeral|CH_canImpersonate|CH_canCreateToken|CH_secretsRead]->(t:CH) RETURN p" }]
     },
     {
@@ -130,23 +118,11 @@
     },
     {
       "name": "[ClusterHound] All Edges from a Namespace",
-      "queryList": [{ "final": true, "query": "MATCH p=(src:CH)-[r]->(tgt:CH) WHERE src.namespace = 'namespace' RETURN p" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(src:CH)-[r]->(tgt:CH) WHERE toLower(src.namespace) = toLower('namespace') RETURN p" }]
     },
     {
       "name": "[ClusterHound] Cross-Namespace and Cluster-Wide Edges from a Namespace",
-      "queryList": [{ "final": true, "query": "MATCH p=(src:CH)-[r]->(tgt:CH) WHERE src.namespace = 'namespace' AND (tgt.namespace IS NULL OR tgt.namespace = '' OR tgt.namespace <> 'namespace') RETURN p" }]
-    },
-    {
-      "name": "[ClusterHound] Pods in Namespace via Service Accounts to All Permissions",
-      "queryList": [{ "final": true, "query": "MATCH p=(pod:CH_Pod {namespace: 'namespace'})-[:CH_mountsServiceAccount]->(i:CH_Identity)-[r]->(t:CH) RETURN p" }]
-    },
-    {
-      "name": "[ClusterHound] Token Creation Pivot to Privileged Identities",
-      "queryList": [{ "final": true, "query": "MATCH (attacker:CH_Identity)-[:CH_canCreateToken]->(ns:CH_Namespace) MATCH (sa:CH_Identity)-[r]->(t:CH) WHERE sa.namespace = toLower(ns.name) RETURN attacker, ns, sa, r, t" }]
-    },
-    {
-      "name": "[ClusterHound] Impersonation Pivot to Privileged Identities",
-      "queryList": [{ "final": true, "query": "MATCH (attacker:CH_Identity)-[:CH_canImpersonate]->(ns:CH_Namespace) MATCH (sa:CH_Identity)-[r]->(t:CH) WHERE sa.namespace = toLower(ns.name) RETURN attacker, ns, sa, r, t" }]
+      "queryList": [{ "final": true, "query": "MATCH p=(src:CH)-[r]->(tgt:CH) WHERE toLower(src.namespace) = toLower('namespace') AND (tgt.namespace IS NULL OR tgt.namespace = '' OR toLower(tgt.namespace) <> toLower('namespace')) RETURN p" }]
     }
   ]
 }

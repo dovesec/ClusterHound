@@ -89,7 +89,7 @@ Each node and edge kind has a reference page under [`NodeDescriptions/`](NodeDes
 
 ClusterHound's traversable edges are emitted as a [structured graph](https://bloodhound.specterops.io/opengraph/overview#structured-graphs), which BloodHound CE's pathfinding understands natively. Set a start and end node in the UI and BloodHound returns the shortest route between them across ClusterHound's edges.
 
-37 pre-built Cypher queries also ship in [`customqueries.json`](customqueries.json) (catalogued in [`QUERIES.md`](QUERIES.md)), covering areas such as entry-point exposure, identities with dangerous permissions, namespace-segmentation violations, and multi-hop compromise routes from an entry point up to N hops. These are a starting point - you can write your own Cypher against ClusterHound's nodes and edges for anything they don't cover.
+31 pre-built Cypher queries also ship in [`customqueries.json`](customqueries.json) (catalogued in [`QUERIES.md`](QUERIES.md)), covering areas such as entry-point exposure, identities with dangerous permissions, namespace-segmentation violations, and shortest-path routes to full cluster compromise. These are a starting point - you can write your own Cypher against ClusterHound's nodes and edges for anything they don't cover.
 
 ## Documentation
 
