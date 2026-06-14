@@ -12,6 +12,10 @@
 
 ClusterHound brings Kubernetes into [BloodHound CE](https://github.com/SpecterOps/BloodHound). It collects a cluster's topology and RBAC configuration with `kubectl` and outputs an [OpenGraph](https://bloodhound.specterops.io/opengraph/overview) JSON file for ingestion, turning multi-hop Kubernetes attack paths - service-account assumption, privilege escalation, host escape, secret access - into traversable edges you can pathfind across.
 
+<p align="center">
+  <img src="example-screenshot.png" alt="ClusterHound attack paths in BloodHound CE" width="100%"/>
+</p>
+
 ## How it works
 
 1. **Collect** - reads pods, services, secrets, RBAC, workloads, nodes and more from your current context.
