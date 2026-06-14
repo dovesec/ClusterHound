@@ -11,7 +11,7 @@ The Pod runs with `hostNetwork: true`, sharing the Node's network namespace and 
 
 ## Abuse
 
-With the host network stack, the pod bypasses all network policies (which apply to pod interfaces, not the host interface) and can sniff traffic on any host interface, reach locally bound services not exposed externally, and perform reconnaissance from the node's IP. Traffic sniffing is particularly high value — service account tokens and credentials transmitted over unencrypted channels within the cluster are recoverable this way.
+With the host network stack, the pod bypasses all network policies (which apply to pod interfaces, not the host interface) and can sniff traffic on any host interface, reach locally bound services not exposed externally, and perform reconnaissance from the node's IP. Traffic sniffing is particularly high value - service account tokens and credentials transmitted over unencrypted channels within the cluster are recoverable this way.
 
 ```bash
 # Enumerate host network interfaces and routes

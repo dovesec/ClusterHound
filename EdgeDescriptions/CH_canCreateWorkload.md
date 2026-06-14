@@ -17,7 +17,7 @@ The Identity holds `create` permission on Pods and/or pod-creating workload cont
 
 ## Abuse
 
-Check the `resource` edge property to understand what can be created. The end goal is the same in all cases — running a pod with a malicious spec — but the path differs slightly.
+Check the `resource` edge property to understand what can be created. The end goal is the same in all cases - running a pod with a malicious spec - but the path differs slightly.
 
 For direct pod creation (`resource` contains `Pod`), the spec is supplied at creation time. For workload controllers (Deployment, StatefulSet, etc.), the malicious spec goes in the pod template and the controller creates the pods. The workload approach has an added persistence advantage: if the pod is deleted the controller simply recreates it.
 

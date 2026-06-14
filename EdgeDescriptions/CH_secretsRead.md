@@ -11,7 +11,7 @@ The Identity holds `get` or `list` permissions on secrets. Points to specific Se
 
 ## Abuse
 
-Read secrets directly using kubectl. Values are base64-encoded and must be decoded. Common high-value targets include service account tokens, TLS certificates, database credentials, and API keys. Both `get` and `list` expose full secret values — Kubernetes returns complete Secret objects including their `data` fields on a `list` call, so there is no meaningful security distinction between the two verbs for secrets.
+Read secrets directly using kubectl. Values are base64-encoded and must be decoded. Common high-value targets include service account tokens, TLS certificates, database credentials, and API keys. Both `get` and `list` expose full secret values - Kubernetes returns complete Secret objects including their `data` fields on a `list` call, so there is no meaningful security distinction between the two verbs for secrets.
 
 ```bash
 # Read a specific secret

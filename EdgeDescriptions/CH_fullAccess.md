@@ -11,7 +11,7 @@ The Identity holds wildcard RBAC permissions (`*` verbs on `*` resources). If th
 
 ## Abuse
 
-Check the target node to understand the scope. A Cluster target means unrestricted access across the entire cluster. A Namespace target means unrestricted access within that namespace only, though this is still significant — all secrets, workloads, and service accounts in that namespace are accessible, and namespace-scoped privilege escalation paths (`CH_canBind`, `CH_canEscalate`) may apply.
+Check the target node to understand the scope. A Cluster target means unrestricted access across the entire cluster. A Namespace target means unrestricted access within that namespace only, though this is still significant - all secrets, workloads, and service accounts in that namespace are accessible, and namespace-scoped privilege escalation paths (`CH_canBind`, `CH_canEscalate`) may apply.
 
 ```bash
 # Confirm the exact scope of permissions

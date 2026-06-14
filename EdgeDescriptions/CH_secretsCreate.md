@@ -9,7 +9,7 @@
 
 The Identity holds `create` permission on secrets. Because creation implies the resource does not yet exist, the edge points to the Namespace or Cluster the permission applies to.
 
-The security-relevant consequence is ServiceAccount assumption. If an identity can create a Secret, it can plant a Secret of type `kubernetes.io/service-account-token` annotated with `kubernetes.io/service-account.name: <target>`. The token controller (part of kube-controller-manager) then populates the Secret's `data.token` field with a valid, long-lived token for that ServiceAccount. Reading the Secret back yields a credential that authenticates as the target ServiceAccount — so `create` together with `get` on secrets in a namespace is equivalent to assuming any ServiceAccount in it.
+The security-relevant consequence is ServiceAccount assumption. If an identity can create a Secret, it can plant a Secret of type `kubernetes.io/service-account-token` annotated with `kubernetes.io/service-account.name: <target>`. The token controller (part of kube-controller-manager) then populates the Secret's `data.token` field with a valid, long-lived token for that ServiceAccount. Reading the Secret back yields a credential that authenticates as the target ServiceAccount - so `create` together with `get` on secrets in a namespace is equivalent to assuming any ServiceAccount in it.
 
 Kubernetes 1.24 stopped auto-generating these token Secrets for every ServiceAccount, but the controller still honours manually created ones. This was validated end-to-end on Kubernetes v1.32.2: the planted Secret was populated and the resulting token authenticated as the named ServiceAccount with its full permissions.
 
@@ -32,7 +32,7 @@ metadata:
 type: kubernetes.io/service-account-token
 EOF
 
-# 2. The controller populates data.token within a second or two — read it back
+# 2. The controller populates data.token within a second or two - read it back
 kubectl get secret minted -n <namespace> \
   -o jsonpath='{.data.token}' | base64 -d
 

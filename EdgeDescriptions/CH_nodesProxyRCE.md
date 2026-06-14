@@ -11,7 +11,7 @@ The Identity holds the `nodes/proxy` GET permission, which can be abused to prox
 
 ## Abuse
 
-The `nodes/proxy` subresource proxies requests through the API server to the Kubelet (port 10250) on any node. Use the proxy to enumerate pods and extract the target node IP, then connect directly to the Kubelet to exec into any container. The Kubelet's `/exec` endpoint is reached via a WebSocket upgrade (HTTP GET), so RBAC sees a `GET nodes/proxy` and permits it — no `pods/exec` permission required. Because audit logs record this as a `nodes/proxy` GET rather than a `pods/exec` create, it is less likely to trigger detections tuned to the standard exec path.
+The `nodes/proxy` subresource proxies requests through the API server to the Kubelet (port 10250) on any node. Use the proxy to enumerate pods and extract the target node IP, then connect directly to the Kubelet to exec into any container. The Kubelet's `/exec` endpoint is reached via a WebSocket upgrade (HTTP GET), so RBAC sees a `GET nodes/proxy` and permits it - no `pods/exec` permission required. Because audit logs record this as a `nodes/proxy` GET rather than a `pods/exec` create, it is less likely to trigger detections tuned to the standard exec path.
 
 ```bash
 export TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)

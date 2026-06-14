@@ -16,4 +16,4 @@ Namespaced
 | namespace | Namespace of the owning Pod |
 | Pod name | Name of the Pod this volume belongs to |
 | Volume type | Volume type: `hostPath`, `secret`, `configMap`, `persistentVolumeClaim`, `projected`, `emptyDir`, `nfs`, `csi`, or `unknown` |
-| source | Source detail — path for hostPath, secret name, PVC claim chain with PV resolution and underlying storage details, driver name for CSI, etc. |
+| source | Source detail - path for hostPath, secret name, PVC claim chain with PV resolution and underlying storage details, driver name for CSI, etc. |

@@ -11,7 +11,7 @@ The Pod runs with `hostPID: true`, sharing the Node's PID namespace and enabling
 
 ## Abuse
 
-With access to the host PID namespace, all processes running on the node — including those in other pods — are visible. The primary attack path is harvesting credentials from `/proc`: environment variables often contain tokens, passwords, and API keys, and open file descriptors can expose files held open by other processes. `nsenter` to escape to the host is also possible but requires the container to run as root or hold `SYS_PTRACE`; hostPID alone does not guarantee it.
+With access to the host PID namespace, all processes running on the node - including those in other pods - are visible. The primary attack path is harvesting credentials from `/proc`: environment variables often contain tokens, passwords, and API keys, and open file descriptors can expose files held open by other processes. `nsenter` to escape to the host is also possible but requires the container to run as root or hold `SYS_PTRACE`; hostPID alone does not guarantee it.
 
 ```bash
 # Enumerate all host and pod processes

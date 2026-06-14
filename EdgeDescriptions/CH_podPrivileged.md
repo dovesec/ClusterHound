@@ -13,9 +13,9 @@ The Pod runs with `privileged: true` in its security context, meaning container 
 
 A privileged container has full access to the host kernel and devices. There are two reliable escape paths.
 
-**Cgroup release agent escape (Felix Wilhelm's method)** — abuses cgroup notification hooks to execute a command as root on the host without needing to find a specific device:
+**Cgroup release agent escape (Felix Wilhelm's method)** - abuses cgroup notification hooks to execute a command as root on the host without needing to find a specific device:
 
-**Host filesystem mount** — find the host's disk device via `/dev` and mount it:
+**Host filesystem mount** - find the host's disk device via `/dev` and mount it:
 
 ```bash
 # Identify the host disk device
