@@ -265,6 +265,12 @@ def collect_all(namespaces=None):
     # frozen. The committed count line is logged once the fetch completes.
     plan = [(r, False) for r in namespaced] + [(r, True) for r in cluster_scoped]
 
+    # Track per-namespace item counts so we can warn about a -n namespace that
+    # yielded nothing (likely a typo). We can't validate existence up front the
+    # way --context does, because a namespace-scoped kubeconfig often can't list
+    # namespaces at all - so we infer from what was actually collected.
+    ns_counts = {ns: 0 for ns in (namespaces or [])}
+
     data = {}
     for resource, cluster in plan:
         with Spinner(f"fetching {resource}"):
@@ -273,7 +279,9 @@ def collect_all(namespaces=None):
             elif namespaces:
                 items = []
                 for ns in namespaces:
-                    items += get_items(resource, cluster_scoped=False, namespace=ns)
+                    ns_items = get_items(resource, cluster_scoped=False, namespace=ns)
+                    ns_counts[ns] += len(ns_items)
+                    items += ns_items
                 data[resource] = items
             else:
                 data[resource] = get_items(resource, cluster_scoped=False, namespace=None)
@@ -281,6 +289,15 @@ def collect_all(namespaces=None):
         count = len(data[resource])
         bullet = C.cyan("*") if count else C.dim("*")
         logging.info(f"  {bullet} {resource:<24}{C.bold(str(count))}")
+
+    empty_ns = [ns for ns, c in ns_counts.items() if c == 0]
+    if empty_ns:
+        logging.warning(
+            "Namespace(s) returned no resources: "
+            + C.bold(", ".join(empty_ns))
+            + " - check the name(s) are correct (cluster-scoped resources are "
+            "still collected)."
+        )
 
     return data
 
@@ -1640,8 +1657,20 @@ def main():
     # already serves as the internal identifier, and BHE derives the display
     # label from `kinds` + `name` automatically.
     #
-    # Node names are kept in their original Kubernetes casing (lowercase) so
-    # they can be copied directly into kubectl commands.
+    # BloodHound uppercases the `name` property for display, so the value shown
+    # in the UI is not directly usable in kubectl (k8s names are lowercase). We
+    # therefore add a "Copy friendly name" property holding the original
+    # lowercase name; BloodHound preserves non-`name` properties verbatim, so
+    # operators can copy it straight into kubectl commands. Synthetic nodes
+    # (Cluster, External Actor, IMDS) have no kubectl equivalent and are skipped.
+    SYNTHETIC_KINDS = {"CH_Cluster", "CH_ExternalActor", "CH_IMDSService"}
+    for node in graph_nodes:
+        props = node.get("properties")
+        if not props or not props.get("name"):
+            continue
+        if SYNTHETIC_KINDS.intersection(node.get("kinds", [])):
+            continue
+        props.setdefault("Copy friendly name", props["name"])
 
     # ── Strip null property values (OpenGraph schema rejects null) ────
     for node in graph_nodes:

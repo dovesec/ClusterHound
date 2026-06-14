@@ -158,7 +158,7 @@ def import_queries(bh: BHSession, path: str, wipe: bool = False) -> None:
 
         bh.create_saved_query(name, query)
 
-    log.info("Done — %d imported, %d updated", imported, updated)
+    log.info("Done - %d imported, %d updated", imported, updated)
 
 
 # ----------------------------------------------------------------------- main
