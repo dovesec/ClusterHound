@@ -269,7 +269,7 @@
     {
       "name": "CH_accessIMDS",
       "display_name": "Access IMDS",
-      "description": "Pod can potentially reach the cloud provider instance metadata endpoint. Requires verification.",
+      "description": "The cloud provider instance metadata endpoint is reachable from the Node, and therefore from workloads scheduled on it. Per-pod reachability requires verification.",
       "is_traversable": true
     },
     {

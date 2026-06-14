@@ -2,16 +2,16 @@
 
 ## Edge Schema
 
-- **Source:** [CH_Pod](../NodeDescriptions/CH_Pod.md)
+- **Source:** [CH_Node](../NodeDescriptions/CH_Node.md)
 - **Target:** [CH_IMDSService](../NodeDescriptions/CH_IMDSService.md)
 
 ## General Information
 
-The Pod can potentially reach the cloud provider metadata endpoint. Does not currently check NetworkPolicies or IMDSv2 hop-limit enforcement; treat as a potential path pending manual verification.
+The cloud provider's instance metadata endpoint is reachable from the Node, and therefore from workloads scheduled on it. The edge is drawn at the node level (one per Node) rather than from every Pod: per-pod reachability depends on NetworkPolicy and IMDSv2 hop-limit enforcement, which ClusterHound does not yet verify, so mapping it from each Pod individually was noise. Treat the edge as a potential path that warrants manual confirmation from a specific workload.
 
 ## Abuse
 
-From the pod, query the cloud provider metadata endpoint to retrieve IAM credentials, instance identity, and configuration data. Credentials obtained here can be used to pivot to cloud-level resources outside the cluster.
+From a workload running on the Node (or from the Node itself after a breakout), query the metadata endpoint to retrieve IAM credentials, instance identity, and configuration data. Credentials obtained here can be used to pivot to cloud-level resources outside the cluster. Whether a given Pod can reach the endpoint depends on egress restrictions and, on AWS, whether IMDSv2 with a reduced hop limit is enforced.
 
 ```bash
 # AWS - list available IAM roles

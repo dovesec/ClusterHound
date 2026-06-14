@@ -7,21 +7,24 @@
 
 ## General Information
 
-The Pod has a read-capable mount of the target Volume, potentially exposing sensitive data accessible within the container's filesystem. Edge property `containername` identifies which container holds the mount.
+The Pod mounts the target Volume read-only. This is an informational edge: it maps what a given Pod can read from disk so you can triage which pods expose sensitive material without execing into each one. The `containername` edge property identifies which container holds the mount, and the Volume node's `Volume type` and `source` properties show what backs it.
 
 ## Abuse
 
-Access the mount path within the container and enumerate its contents. The value varies significantly by volume type: a hostPath mount of `/` or `/etc` is critical, a ConfigMap with non-sensitive configuration is not. The `containername` edge property identifies which container holds the mount. Check the Volume node's properties for type and source path to triage quickly before investigating further.
+Anyone who controls the Pod can already read its mounts, so this edge does not grant new access; its purpose is to surface where sensitive data sits before you engage. The value depends entirely on what backs the volume, so triage on the Volume node's type first:
+
+- **hostPath** - the node filesystem is mounted into the Pod. Reading it can disclose node-level material (kubelet credentials, `/etc/kubernetes`, container runtime config, `/root/.ssh`), often a direct step toward node or cluster compromise.
+- **secret / projected** - credential material, including mounted ServiceAccount tokens, is present on disk.
+- **configMap / emptyDir** - usually low value, unless application secrets have been placed there.
 
 ```bash
-# Enumerate the mount from within the container
+# Triage the mount from within the container
 ls -la /path/to/mount
 find /path/to/mount -type f 2>/dev/null
 
-# Read sensitive files
+# Read sensitive files (value depends on the backing type)
 cat /path/to/mount/.env
-cat /path/to/mount/credentials
-cat /path/to/mount/config.yaml
+cat /var/run/secrets/kubernetes.io/serviceaccount/token
 ```
 
 ## References
